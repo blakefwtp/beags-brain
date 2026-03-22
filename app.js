@@ -1314,6 +1314,9 @@ function hideTyping() {
   if (el) el.remove();
 }
 
+// Conversation history for multi-turn chat
+let chatHistory = [];
+
 async function sendChat() {
   const input = document.getElementById('chatInput');
   const msg = input.value.trim();
@@ -1321,13 +1324,14 @@ async function sendChat() {
 
   input.value = '';
   addChatMessage('user', msg);
+  chatHistory.push({ role: 'user', content: msg });
   showTyping();
 
   try {
     const resp = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg, context: getChatContext() })
+      body: JSON.stringify({ message: msg, history: chatHistory.slice(-20), context: getChatContext() })
     });
 
     hideTyping();
@@ -1339,7 +1343,9 @@ async function sendChat() {
     }
 
     const data = await resp.json();
-    addChatMessage('assistant', data.reply || 'Done!');
+    const reply = data.reply || 'Done!';
+    addChatMessage('assistant', reply);
+    chatHistory.push({ role: 'assistant', content: reply });
 
     if (data.actions && data.actions.length > 0) {
       executeActions(data.actions);

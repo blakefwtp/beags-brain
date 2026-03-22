@@ -104,7 +104,7 @@ module.exports = async (req, res) => {
     });
   }
 
-  const { message, context } = req.body || {};
+  const { message, history, context } = req.body || {};
   if (!message || typeof message !== 'string') {
     return res.status(400).json({ error: 'message is required' });
   }
@@ -140,16 +140,24 @@ module.exports = async (req, res) => {
       }
     }
 
+    // Build messages array with conversation history
+    const messages = [];
+    if (Array.isArray(history) && history.length > 1) {
+      // Include prior turns (skip the last one since that's the current message)
+      history.slice(0, -1).forEach(h => {
+        if (h.role === 'user' || h.role === 'assistant') {
+          messages.push({ role: h.role, content: String(h.content) });
+        }
+      });
+    }
+    // Add current message with context
+    messages.push({ role: 'user', content: message + contextStr });
+
     const response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
       system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: message + contextStr
-        }
-      ]
+      messages: messages
     });
 
     const rawText = response.content[0]?.text || '';
