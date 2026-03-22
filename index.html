@@ -2182,6 +2182,96 @@
   .idea-card-mobile {
     touch-action: pan-y;
   }
+
+  /* ── QUICK-ADD GROCERY CHIPS ── */
+  .quick-add-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 0 4px;
+    border-top: 1px solid var(--cream);
+    margin-top: 4px;
+  }
+
+  .quick-chip {
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--warm-gray);
+    background: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    color: var(--text-medium);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .quick-chip:active { transform: scale(0.95); }
+
+  .quick-chip.picked {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--text-dark);
+    padding: 4px 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .qty-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .qty-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--warm-gray);
+    background: var(--white);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-medium);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Sans', sans-serif;
+    padding: 0;
+    line-height: 1;
+  }
+
+  .qty-btn:active { background: var(--cream); }
+
+  .qty-val {
+    min-width: 18px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-dark);
+  }
+
+  .qty-confirm {
+    padding: 4px 10px;
+    border-radius: 14px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: 2px;
+  }
+
+  .qty-confirm:active { background: var(--accent-hover); }
+
+  /* ── CALENDAR PINCH ZOOM ── */
+  .fullcal-wrapper {
+    touch-action: pan-y;
+  }
 </style>
 </head>
 <body>
@@ -2293,7 +2383,7 @@
     <div class="fullcal-dow" id="fullCalDow">
       <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
     </div>
-    <div class="fullcal-wrapper" id="fullCalWrapper" style="touch-action: pan-y;">
+    <div class="fullcal-wrapper" id="fullCalWrapper">
       <div class="fullcal-grid" id="fullCalGrid"></div>
       <div class="zoom-hint" id="zoomHint">Use slider to zoom</div>
     </div>
@@ -2304,6 +2394,19 @@
   <div id="tab-grocery" class="tab-panel">
     <div class="page-title">Grocery List</div>
     <div class="page-subtitle" id="grocerySubtitle">0 items</div>
+
+    <!-- H-E-B Order Buttons -->
+    <div id="hebOrderBar" class="order-bar" style="display:none;">
+      <button class="order-btn heb-order" onclick="sendToHeb()" id="hebSendBtn">
+        <div class="order-btn-text">
+          <span>Send List to H-E-B</span>
+          <span class="btn-sub">via Instacart curbside & delivery</span>
+        </div>
+      </button>
+      <button class="order-btn" style="background:var(--white);color:var(--text-dark);border:1px solid var(--warm-gray);flex:0 0 auto;padding:14px 16px;" onclick="copyGroceryList()">
+        <span style="font-size:16px;">📋</span> Copy
+      </button>
+    </div>
 
     <div id="groceryCategories">
       <div class="grocery-category">

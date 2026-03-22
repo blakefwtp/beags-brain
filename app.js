@@ -205,9 +205,12 @@ function goFullCalToday() {
   renderFullCal();
 }
 
-// ── ZOOM (slider only — no pinch conflict) ──
+// ── ZOOM (slider + pinch-to-zoom with native zoom prevention) ──
 let calZoom = 1;
 let zoomHideTimer = null;
+let pinchStartDist = 0;
+let pinchStartZoom = 1;
+let isPinching = false;
 
 function getZoomConfig(z) {
   return {
@@ -262,6 +265,61 @@ function applyZoom(value) {
   clearTimeout(zoomHideTimer);
   zoomHideTimer = setTimeout(() => ind.classList.remove('visible'), 800);
 }
+
+// ── PINCH-TO-ZOOM GESTURE HANDLER ──
+// Prevents native browser zoom inside calendar, handles it ourselves
+(function setupCalendarPinch() {
+  const wrapper = document.getElementById('fullCalWrapper');
+  if (!wrapper) return;
+
+  // Prevent native zoom on the calendar wrapper when 2 fingers detected
+  wrapper.addEventListener('touchstart', function(e) {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      isPinching = true;
+      pinchStartDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      pinchStartZoom = calZoom;
+    }
+  }, { passive: false });
+
+  wrapper.addEventListener('touchmove', function(e) {
+    if (e.touches.length === 2) {
+      e.preventDefault(); // Block native zoom
+      isPinching = true;
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const ratio = dist / pinchStartDist;
+      const newZoom = Math.max(1, Math.min(5, pinchStartZoom * ratio));
+      applyZoom(newZoom);
+    }
+  }, { passive: false });
+
+  wrapper.addEventListener('touchend', function(e) {
+    if (isPinching && e.touches.length < 2) {
+      isPinching = false;
+      // Snap to nearest 0.5
+      const snapped = Math.max(1, Math.round(calZoom * 2) / 2);
+      applyZoom(snapped);
+    }
+  });
+
+  // Double-tap to toggle between 1x and 2.5x
+  let lastTap = 0;
+  wrapper.addEventListener('touchend', function(e) {
+    if (e.touches.length === 0 && !isPinching) {
+      const now = Date.now();
+      if (now - lastTap < 300) {
+        applyZoom(calZoom > 1.1 ? 1 : 2.5);
+      }
+      lastTap = now;
+    }
+  });
+})();
 
 // ── COLOR BLOCKS ──
 let nextBlockId = S.get('nextBlockId', 1);
@@ -469,6 +527,56 @@ function autoArchive() {
   if (groceries.length !== beforeG) save('groceries', groceries);
 }
 
+// ── COMMON GROCERY ITEMS (quick-add per category) ──
+const COMMON_ITEMS = {
+  dairy: ['Milk','Eggs','Butter','Cheese','Yogurt','Cream cheese','Sour cream','Heavy cream','Shredded cheese','Coffee creamer'],
+  meat: ['Chicken breasts','Ground beef','Ground turkey','Bacon','Deli turkey','Sausage','Pork chops','Steak','Deli ham','Hot dogs'],
+  produce: ['Bananas','Apples','Strawberries','Avocados','Tomatoes','Onions','Potatoes','Lettuce','Baby spinach','Lemons','Bell peppers','Garlic','Broccoli','Carrots','Sweet potatoes'],
+  pantry: ['Bread','Rice','Pasta','Peanut butter','Goldfish crackers','Granola bars','Cereal','Chips','Tortillas','Canned beans','Chicken broth','Olive oil','Ketchup','Mac & cheese'],
+  other: ['Paper towels','Toilet paper','Trash bags','Dish soap','Laundry detergent','Ziplock bags','Aluminum foil','Baby wipes','Diapers','Dog food']
+};
+
+function renderGroceryQuickAdd(cat, containerId) {
+  const existing = groceries.filter(g => g.cat === cat && !g.done).map(g => g.text.replace(/\s*\(.*\)$/, '').toLowerCase());
+  const suggestions = COMMON_ITEMS[cat].filter(item => !existing.includes(item.toLowerCase()));
+  if (suggestions.length === 0) return '';
+  return '<div class="quick-add-chips" id="chips_' + cat + '">' +
+    suggestions.slice(0, 8).map(item =>
+      '<button class="quick-chip" onclick="quickAddGrocery(\'' + esc(item).replace(/'/g, "\\'") + '\', \'' + cat + '\', this)">+ ' + esc(item) + '</button>'
+    ).join('') +
+    '</div>';
+}
+
+function quickAddGrocery(name, cat, btn) {
+  // Show quantity picker inline
+  if (btn.classList.contains('picked')) return;
+  btn.classList.add('picked');
+  btn.innerHTML = '<span style="font-weight:600;">' + esc(name) + '</span> <span class="qty-controls">' +
+    '<button class="qty-btn" onclick="event.stopPropagation(); adjustQty(this, -1)">−</button>' +
+    '<span class="qty-val">1</span>' +
+    '<button class="qty-btn" onclick="event.stopPropagation(); adjustQty(this, 1)">+</button>' +
+    '<button class="qty-confirm" onclick="event.stopPropagation(); confirmGroceryAdd(\'' + esc(name).replace(/'/g, "\\'") + '\', \'' + cat + '\', this)">Add</button>' +
+    '</span>';
+}
+
+function adjustQty(btn, delta) {
+  const valEl = btn.parentElement.querySelector('.qty-val');
+  let val = parseInt(valEl.textContent) + delta;
+  if (val < 1) val = 1;
+  if (val > 20) val = 20;
+  valEl.textContent = val;
+}
+
+function confirmGroceryAdd(name, cat, btn) {
+  const qtyEl = btn.parentElement.querySelector('.qty-val');
+  const qty = parseInt(qtyEl.textContent);
+  const text = qty > 1 ? name + ' (' + qty + ')' : name;
+  groceries.push({ id: getId(), text: text, cat: cat, done: false, doneAt: null, qty: qty });
+  save('groceries', groceries);
+  renderGroceries();
+  showToast('Added!', text);
+}
+
 // ── GROCERY RENDERING ──
 function renderGroceries() {
   const catMap = { dairy: 'groceryDairy', meat: 'groceryMeat', produce: 'groceryProduce', pantry: 'groceryPantry', other: 'groceryOther' };
@@ -479,16 +587,20 @@ function renderGroceries() {
     const items = groceries.filter(g => g.cat === cat && !g.done);
     document.getElementById(countMap[cat]).textContent = items.length + ' item' + (items.length !== 1 ? 's' : '');
     if (items.length === 0) {
-      el.innerHTML = '';
+      el.innerHTML = renderGroceryQuickAdd(cat);
     } else {
       el.innerHTML = items.map(g =>
         '<div class="check-row" data-id="' + g.id + '"><input type="checkbox" onchange="checkGrocery(' + g.id + ')"><label>' + esc(g.text) + '</label></div>'
-      ).join('');
+      ).join('') + renderGroceryQuickAdd(cat);
     }
   });
 
   const total = groceries.filter(g => !g.done).length;
   document.getElementById('grocerySubtitle').textContent = total + ' item' + (total !== 1 ? 's' : '');
+
+  // Show/hide H-E-B order bar
+  const hebBar = document.getElementById('hebOrderBar');
+  if (hebBar) hebBar.style.display = total > 0 ? 'flex' : 'none';
 
   // Completed
   const completed = groceries.filter(g => g.done && g.doneAt && (Date.now() - g.doneAt) < ARCHIVE_DAYS * 86400000);
@@ -510,6 +622,84 @@ function uncheckGrocery(id) {
   const g = groceries.find(x => x.id === id);
   if (g) { g.done = false; g.doneAt = null; save('groceries', groceries); }
   renderGroceries();
+}
+
+// ── H-E-B / INSTACART INTEGRATION ──
+function getGroceryListText() {
+  const catLabels = { dairy: 'Dairy & Eggs', meat: 'Meat', produce: 'Produce', pantry: 'Pantry & Snacks', other: 'Other' };
+  const active = groceries.filter(g => !g.done);
+  if (active.length === 0) return '';
+  let text = '';
+  Object.keys(catLabels).forEach(cat => {
+    const items = active.filter(g => g.cat === cat);
+    if (items.length > 0) {
+      text += catLabels[cat] + ':\n';
+      items.forEach(g => { text += '  - ' + g.text + '\n'; });
+      text += '\n';
+    }
+  });
+  return text.trim();
+}
+
+function copyGroceryList() {
+  const text = getGroceryListText();
+  if (!text) { showToast('List is empty', 'Add items first'); return; }
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('List copied!', groceries.filter(g => !g.done).length + ' items');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('List copied!', groceries.filter(g => !g.done).length + ' items');
+  });
+}
+
+async function sendToHeb() {
+  const active = groceries.filter(g => !g.done);
+  if (active.length === 0) { showToast('List is empty', 'Add items first'); return; }
+
+  try {
+    const resp = await fetch('/api/instacart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: active.map(g => ({ name: g.text, quantity: 1, unit: 'each' })),
+        zipCode: '78666'
+      })
+    });
+    const data = await resp.json();
+
+    if (resp.ok && data.url) {
+      showToast('Opening H-E-B on Instacart...', active.length + ' items');
+      window.open(data.url, '_blank');
+      return;
+    }
+
+    if (data.fallback) {
+      hebBridgeFallback(active);
+      return;
+    }
+
+    throw new Error(data.error || 'Unknown error');
+  } catch (err) {
+    hebBridgeFallback(active);
+  }
+}
+
+function hebBridgeFallback(active) {
+  const text = getGroceryListText();
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('List copied!', 'Paste in H-E-B search');
+    window.open('https://www.heb.com/shop', '_blank');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('List copied!', 'Paste in H-E-B search');
+    window.open('https://www.heb.com/shop', '_blank');
+  });
 }
 
 // ── IDEAS RENDERING ──
