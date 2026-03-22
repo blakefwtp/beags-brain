@@ -24,6 +24,13 @@ function getId() { const id = nextId++; save('nextId', nextId); return id; }
 
 // ── HELPERS ──
 function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+function to12hr(timeStr) {
+  if (!timeStr) return '';
+  const [h, m] = timeStr.split(':').map(Number);
+  const ampm = h >= 12 ? 'pm' : 'am';
+  const hr = h % 12 || 12;
+  return hr + (m > 0 ? ':' + String(m).padStart(2,'0') : '') + ampm;
+}
 function showToast(title, sub) {
   const toast = document.getElementById('orderToast');
   toast.querySelector('div > div:first-child').textContent = title;
@@ -579,10 +586,18 @@ document.getElementById('quickAddSubmit').onclick = function() {
       const key = parseInt(dp[0]) + '-' + parseInt(dp[1]) + '-' + parseInt(dp[2]);
       const timeVal = document.getElementById('eventTime').value;
       const color = document.getElementById('eventColor').value;
-      const text = timeVal ? val + ' ' + timeVal : val;
+      const timeDisplay = to12hr(timeVal);
+      const text = timeDisplay ? val + ' ' + timeDisplay : val;
       if (!events[key]) events[key] = [];
       events[key].push({ t: text, c: color });
       save('events', events);
+      // Also add as to-do if checkbox is checked
+      const alsoTodo = document.getElementById('eventAlsoTodo');
+      if (alsoTodo && alsoTodo.checked) {
+        todos.push({ id: getId(), text: text, done: false, doneAt: null, type: 'todo' });
+        save('todos', todos);
+        renderTodos();
+      }
       renderMiniMonth(); renderThisWeek(); updateDateLine();
       if (document.getElementById('tab-calendar').classList.contains('active')) renderFullCal();
       showToast('Event added!', text);
