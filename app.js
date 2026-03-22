@@ -178,13 +178,23 @@ function renderFullCal() {
       applyBlockToCell(cell, key);
       const evts = events[key];
       if (evts) {
-        evts.forEach(ev => {
+        evts.forEach((ev, idx) => {
           const evDiv = document.createElement('div');
           evDiv.className = 'fullcal-ev ' + ev.c;
           evDiv.textContent = ev.t;
+          evDiv.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openEventEditor(key, idx);
+          });
           eventsDiv.appendChild(evDiv);
         });
       }
+      // Tap empty area of a day to add event
+      cell.addEventListener('click', () => {
+        if (!cell.classList.contains('other-month')) {
+          openQuickAddForDate(key);
+        }
+      });
     }
     cell.appendChild(eventsDiv);
     grid.appendChild(cell);
@@ -870,10 +880,82 @@ function updateTimerDisplay() {
     String(Math.floor(timerSeconds / 60)).padStart(2,'0') + ':' + String(timerSeconds % 60).padStart(2,'0');
 }
 
-// ── CONTEXT MENU (no long-press — removed to fix scroll issue) ──
+// ── CALENDAR EVENT EDITOR ──
+let editingEventKey = null;
+let editingEventIdx = null;
+
+function openEventEditor(dateKey, eventIdx) {
+  editingEventKey = dateKey;
+  editingEventIdx = eventIdx;
+  const ev = events[dateKey][eventIdx];
+
+  const menu = document.getElementById('contextMenu');
+  const overlay = document.getElementById('contextOverlay');
+
+  menu.innerHTML =
+    '<div style="padding:14px 18px 8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-light);">' + esc(ev.t) + '</div>' +
+    '<div class="context-menu-item" onclick="editEventText()"><span class="cm-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span> Edit</div>' +
+    '<div class="context-menu-item" onclick="changeEventColor(\'pink\')"><span class="cm-icon" style="color:var(--soft-pink);">●</span> Pink</div>' +
+    '<div class="context-menu-item" onclick="changeEventColor(\'green\')"><span class="cm-icon" style="color:var(--soft-green);">●</span> Green</div>' +
+    '<div class="context-menu-item" onclick="changeEventColor(\'blue\')"><span class="cm-icon" style="color:var(--soft-blue);">●</span> Blue</div>' +
+    '<div class="context-menu-item" onclick="changeEventColor(\'yellow\')"><span class="cm-icon" style="color:var(--soft-yellow);">●</span> Yellow</div>' +
+    '<div class="context-menu-item" onclick="changeEventColor(\'lavender\')"><span class="cm-icon" style="color:var(--soft-lavender);">●</span> Lavender</div>' +
+    '<div class="context-menu-item" style="color:var(--danger);" onclick="deleteCalEvent()"><span class="cm-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></span> Delete</div>';
+
+  overlay.classList.add('visible');
+  // Center the menu on screen
+  menu.style.left = '50%';
+  menu.style.top = '50%';
+  menu.style.transform = 'translate(-50%, -50%)';
+  requestAnimationFrame(() => menu.classList.add('visible'));
+}
+
+function editEventText() {
+  hideContext();
+  if (!editingEventKey || editingEventIdx === null) return;
+  const ev = events[editingEventKey][editingEventIdx];
+  const newText = prompt('Edit event:', ev.t);
+  if (newText !== null && newText.trim()) {
+    events[editingEventKey][editingEventIdx].t = newText.trim();
+    save('events', events);
+    renderMiniMonth(); renderThisWeek(); renderFullCal();
+  }
+}
+
+function changeEventColor(color) {
+  hideContext();
+  if (!editingEventKey || editingEventIdx === null) return;
+  events[editingEventKey][editingEventIdx].c = color;
+  save('events', events);
+  renderMiniMonth(); renderFullCal();
+}
+
+function deleteCalEvent() {
+  hideContext();
+  if (!editingEventKey || editingEventIdx === null) return;
+  events[editingEventKey].splice(editingEventIdx, 1);
+  if (events[editingEventKey].length === 0) delete events[editingEventKey];
+  save('events', events);
+  renderMiniMonth(); renderThisWeek(); updateDateLine(); renderFullCal();
+  showToast('Event deleted', '');
+}
+
+function openQuickAddForDate(dateKey) {
+  openQuickAdd('event');
+  // Pre-fill the date
+  const parts = dateKey.split('-');
+  const isoDate = parts[0] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
+  setTimeout(() => {
+    document.getElementById('eventDate').value = isoDate;
+  }, 100);
+}
+
+// ── CONTEXT MENU ──
 function hideContext() {
   document.getElementById('contextOverlay').classList.remove('visible');
-  document.getElementById('contextMenu').classList.remove('visible');
+  const menu = document.getElementById('contextMenu');
+  menu.classList.remove('visible');
+  menu.style.transform = '';
 }
 
 // ── ESCAPE KEY ──

@@ -1,21 +1,22 @@
-const CACHE_NAME = 'beags-brain-v3';
-const ASSETS = [
-  '/',
-  '/index.html',
-  '/app.js',
+const CACHE_NAME = 'beags-brain-v4';
+
+// Only cache fonts and icons — app files always fetched fresh
+const CACHE_ASSETS = [
   '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
   'https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap'
 ];
 
-// Install — cache core assets
+// Install — cache static assets only
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(CACHE_ASSETS))
   );
   self.skipWaiting();
 });
 
-// Activate — clean old caches
+// Activate — clean ALL old caches
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -25,22 +26,31 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch — network first, fall back to cache
+// Fetch — always network for HTML/JS, cache-first for fonts/icons
 self.addEventListener('fetch', event => {
-  // Skip non-GET
   if (event.request.method !== 'GET') return;
 
+  const url = new URL(event.request.url);
+
+  // App files: always network, no caching
+  if (url.pathname === '/' || url.pathname.endsWith('.html') || url.pathname.endsWith('.js')) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Everything else (fonts, icons): cache-first
   event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        // Cache successful responses
+    caches.match(event.request).then(cached => {
+      return cached || fetch(event.request).then(response => {
         if (response.ok) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
         return response;
-      })
-      .catch(() => caches.match(event.request))
+      });
+    })
   );
 });
 
