@@ -76,6 +76,9 @@ Available action types:
 19. clear_groceries — Clear all grocery items (or all in a category)
     { "type": "clear_groceries", "params": { "cat": "dairy|meat|produce|pantry|other" (optional, omit to clear all) } }
 
+20. add_reminder — Add a recurring weekly reminder with a GO timer
+    { "type": "add_reminder", "params": { "title": "reminder name", "sub": "details" (optional), "day": "Sunday|Monday|...|Daily", "minutes": 10 } }
+
 GUIDELINES:
 - For grocery items, pick the best category. Common mappings: milk/eggs/cheese/butter/yogurt = dairy, chicken/beef/bacon/sausage = meat, fruits/vegetables = produce, bread/rice/pasta/cereal/snacks = pantry, cleaning/paper goods = other.
 - For events, pick a color that makes sense: kids/school = green, work/appointments = blue, fun/social = pink, reminders = yellow, personal = lavender

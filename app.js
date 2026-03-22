@@ -16,6 +16,7 @@ let groceries = S.get('groceries', []); // { id, text, cat, done, doneAt }
 let ideas = S.get('ideas', []);         // { id, title, body, tag, tagColor }
 let colorBlocks = S.get('colorBlocks', []);
 let nextId = S.get('nextId', 1);
+let reminders = S.get('reminders', []); // { id, title, sub, day, minutes }
 let tankValues = S.get('tanks', { touch: 50, time: 50, help: 50, emotional: 50, _updated: null });
 let tankHistory = S.get('tankHistory', []); // { date: 'YYYY-MM-DD', touch, time, help, emotional }
 
@@ -712,6 +713,75 @@ function hebBridgeFallback(active) {
   });
 }
 
+// ── REMINDERS RENDERING ──
+const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DAY_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function renderReminders() {
+  const body = document.getElementById('remindersBody');
+  if (reminders.length === 0) {
+    body.innerHTML = '<div class="empty-state"><div class="empty-icon">🔁</div>No reminders yet. Tap + below to add one.</div>' +
+      '<div style="text-align:center;padding-bottom:8px;"><button class="go-btn" onclick="openAddReminder()">+ Add Reminder</button></div>';
+    return;
+  }
+  body.innerHTML = reminders.map(r =>
+    '<div class="reminder-item" data-id="' + r.id + '">' +
+    '<div class="reminder-info"><div class="r-title">' + esc(r.title) + '</div>' +
+    '<div class="r-sub">Every ' + (r.day || 'Sunday') + (r.sub ? ' — ' + esc(r.sub) : '') + '</div></div>' +
+    '<button class="go-btn" onclick="openTimer(\'' + esc(r.title).replace(/'/g, "\\'") + '\', ' + (r.minutes || 10) + ')">GO</button>' +
+    '<button style="background:none;border:none;font-size:16px;cursor:pointer;padding:4px 8px;color:var(--text-light);" onclick="deleteReminder(' + r.id + ')">✕</button>' +
+    '</div>'
+  ).join('') +
+  '<div style="text-align:center;padding:8px 0;"><button class="go-btn" onclick="openAddReminder()">+ Add Reminder</button></div>';
+}
+
+function deleteReminder(id) {
+  reminders = reminders.filter(r => r.id !== id);
+  save('reminders', reminders);
+  renderReminders();
+}
+
+function openAddReminder() {
+  // Use the quick add modal with custom fields
+  const modal = document.getElementById('quickAddModal');
+  document.getElementById('quickAddTitle').textContent = 'Add Weekly Reminder';
+  document.getElementById('quickAddInput').placeholder = 'e.g. Pick HelloFresh meals';
+  document.getElementById('quickAddInput').value = '';
+  document.getElementById('eventFields').style.display = 'none';
+  document.getElementById('groceryFields').style.display = 'none';
+
+  // Show reminder-specific fields
+  let reminderFields = document.getElementById('reminderFields');
+  if (!reminderFields) {
+    reminderFields = document.createElement('div');
+    reminderFields.id = 'reminderFields';
+    reminderFields.innerHTML =
+      '<div class="event-form-row">' +
+      '<select id="reminderDay">' +
+      DAY_NAMES.map(d => '<option value="' + d + '"' + (d === 'Sunday' ? ' selected' : '') + '>' + d + '</option>').join('') +
+      '<option value="Daily">Daily</option>' +
+      '</select>' +
+      '<select id="reminderMinutes">' +
+      '<option value="5">5 min timer</option>' +
+      '<option value="10" selected>10 min timer</option>' +
+      '<option value="15">15 min timer</option>' +
+      '<option value="20">20 min timer</option>' +
+      '<option value="30">30 min timer</option>' +
+      '<option value="45">45 min timer</option>' +
+      '<option value="60">60 min timer</option>' +
+      '</select>' +
+      '</div>' +
+      '<input class="modal-input" id="reminderSub" type="text" placeholder="Details (optional) e.g. choose before midnight">';
+    document.getElementById('quickAddInput').parentElement.insertBefore(reminderFields, document.getElementById('quickAddInput').nextSibling.nextSibling);
+  }
+  reminderFields.style.display = 'block';
+
+  // Override the submit button for reminders
+  currentQuickAddType = 'reminder';
+  modal.classList.add('visible');
+  setTimeout(() => document.getElementById('quickAddInput').focus(), 300);
+}
+
 // ── IDEAS RENDERING ──
 function renderIdeas() {
   const body = document.getElementById('ideasBody');
@@ -765,6 +835,8 @@ function openQuickAdd(type) {
   document.getElementById('quickAddInput').value = '';
   document.getElementById('eventFields').style.display = type === 'event' ? 'block' : 'none';
   document.getElementById('groceryFields').style.display = type === 'grocery' ? 'block' : 'none';
+  const rf = document.getElementById('reminderFields');
+  if (rf) rf.style.display = 'none';
 
   if (type === 'event') {
     const today = new Date();
@@ -834,6 +906,19 @@ document.getElementById('quickAddSubmit').onclick = function() {
       save('ideas', ideas);
       renderIdeas();
       showToast('Idea captured!', val);
+      break;
+    }
+    case 'reminder': {
+      const day = document.getElementById('reminderDay') ? document.getElementById('reminderDay').value : 'Sunday';
+      const minutes = document.getElementById('reminderMinutes') ? parseInt(document.getElementById('reminderMinutes').value) : 10;
+      const sub = document.getElementById('reminderSub') ? document.getElementById('reminderSub').value.trim() : '';
+      reminders.push({ id: getId(), title: val, sub: sub, day: day, minutes: minutes });
+      save('reminders', reminders);
+      renderReminders();
+      showToast('Reminder added!', val + ' — every ' + day);
+      // Hide reminder fields
+      const rf = document.getElementById('reminderFields');
+      if (rf) rf.style.display = 'none';
       break;
     }
   }
@@ -1673,6 +1758,14 @@ function executeActions(actions) {
         break;
       }
 
+      case 'add_reminder': {
+        reminders.push({ id: getId(), title: p.title || 'Reminder', sub: p.sub || '', day: p.day || 'Sunday', minutes: p.minutes || 10 });
+        save('reminders', reminders);
+        renderReminders();
+        confirmations.push('Added reminder: ' + (p.title || 'Reminder') + ' every ' + (p.day || 'Sunday'));
+        break;
+      }
+
       default:
         break;
     }
@@ -1757,6 +1850,7 @@ renderTodos();
 renderGsd();
 renderGroceries();
 renderIdeas();
+renderReminders();
 initTanks();
 updateSuggestions();
 updatePulse();
