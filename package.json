@@ -1,0 +1,7 @@
+{
+  "name": "beags-brain",
+  "private": true,
+  "dependencies": {
+    "web-push": "^3.6.0"
+  }
+}

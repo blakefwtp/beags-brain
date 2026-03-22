@@ -496,56 +496,69 @@
 
   .go-btn:active { transform: scale(0.95); background: var(--accent-hover); }
 
-  /* ── QUICK CAPTURE FAB ── */
-  .fab-container {
-    position: fixed;
-    bottom: calc(80px + var(--safe-bottom));
-    right: 20px;
-    z-index: 90;
-  }
-
-  @media (min-width: 500px) {
-    .fab-container {
-      right: calc(50% - 215px + 20px);
-    }
-  }
-
-  .fab {
-    width: 56px;
-    height: 56px;
+  /* ── CENTER NAV + BUTTON ── */
+  .nav-fab {
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background: var(--accent);
-    color: white;
     border: none;
-    font-size: 28px;
     cursor: pointer;
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 2px 12px rgba(200,168,140,0.4);
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-top: -20px;
     transition: transform 0.2s, background 0.15s;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .fab:active { transform: scale(0.92); }
-  .fab.open { transform: rotate(45deg); background: var(--text-medium); }
+  .nav-fab svg {
+    width: 22px;
+    height: 22px;
+  }
 
-  .fab-menu {
-    position: absolute;
-    bottom: 66px;
-    right: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  .nav-fab:active { transform: scale(0.9); }
+  .nav-fab.open { background: var(--text-medium); transform: rotate(45deg); }
+
+  /* ── FAB POPUP MENU ── */
+  .fab-menu-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 95;
     opacity: 0;
     pointer-events: none;
-    transform: translateY(10px);
-    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: opacity 0.2s;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
   }
 
-  .fab-menu.open {
+  .fab-menu-overlay.open {
     opacity: 1;
     pointer-events: auto;
-    transform: translateY(0);
+  }
+
+  .fab-menu-popup {
+    position: fixed;
+    bottom: calc(70px + var(--safe-bottom));
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 96;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-width: 430px;
+  }
+
+  .fab-menu-popup.open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
   }
 
   .fab-option {
@@ -566,7 +579,7 @@
   }
 
   .fab-option:active { transform: scale(0.95); }
-  .fab-option .fab-emoji { font-size: 18px; }
+  .fab-option .fab-emoji { font-size: 18px; display: flex; align-items: center; }
 
   /* ── LONG PRESS CONTEXT MENU ── */
   .context-overlay {
@@ -1960,6 +1973,134 @@
 
   .suggestion-card .sug-send:active { background: var(--accent-hover); }
 
+  /* ── PUSH NOTIFICATION SETUP ── */
+  .notif-setup-card {
+    margin: 16px 16px 8px;
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--warm-gray);
+  }
+
+  .notif-setup-card h4 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-light);
+    margin-bottom: 10px;
+  }
+
+  .notif-setup-card p {
+    font-size: 13px;
+    color: var(--text-light);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .setup-btn {
+    display: inline-block;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-right: 8px;
+    margin-bottom: 6px;
+  }
+  .setup-btn:active { background: var(--accent-hover); }
+  .setup-btn.outline {
+    background: transparent;
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+  }
+  .setup-btn.outline:active { background: var(--accent-light); }
+  .setup-btn.danger {
+    background: transparent;
+    color: var(--text-light);
+    border: 1px solid var(--warm-gray);
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+
+  .paired-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--success);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  /* ── PAIRING MODAL ── */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .modal-card {
+    background: var(--white);
+    border-radius: 16px;
+    max-width: 380px;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 20px 12px;
+  }
+
+  .modal-header h3 {
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  .modal-body {
+    padding: 0 20px 16px;
+  }
+
+  .modal-footer {
+    padding: 0 20px 20px;
+  }
+
+  .pair-modal-btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .pair-modal-btn:active { background: var(--accent-hover); }
+
   /* ── WEEKLY PULSE ── */
   .pulse-card {
     margin: 12px 16px;
@@ -2530,10 +2671,35 @@
       </div>
     </div>
 
+    <!-- PUSH NOTIFICATION SETUP -->
+    <div class="notif-setup-card" id="notifSetup">
+      <div id="notifSetupContent">
+        <!-- Populated by JS based on pairing state -->
+      </div>
+    </div>
+
     <!-- SUGGESTIONS -->
     <div class="suggestion-section" id="suggestionsSection">
       <h4>Nudge him with a suggestion</h4>
       <div id="suggestionCards"></div>
+    </div>
+  </div>
+
+  <!-- PAIRING CODE MODAL -->
+  <div class="modal-overlay" id="pairModal" style="display:none;" onclick="if(event.target===this)closePairModal()">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Enter Pairing Code</h3>
+        <button class="modal-close" onclick="closePairModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;line-height:1.5;">Paste the code your husband copied from his phone. This connects his notifications to your nudges.</p>
+        <textarea id="pairCodeInput" placeholder="Paste the code here..." rows="4" style="width:100%;font-size:13px;border:1px solid var(--warm-gray);border-radius:10px;padding:12px;font-family:monospace;resize:none;"></textarea>
+        <div class="error-msg" id="pairError" style="color:#C0392B;font-size:12px;margin-top:6px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="pair-modal-btn" onclick="savePairCode()">Connect</button>
+      </div>
     </div>
   </div>
 
@@ -2557,19 +2723,17 @@
 
 </div>
 
-<!-- ═══ QUICK CAPTURE FAB ═══ -->
-<div class="fab-container">
-  <div class="fab-menu" id="fabMenu">
-    <div class="fab-option" onclick="openQuickAdd('grocery')"><span class="fab-emoji"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#80B878" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></span> Grocery Item</div>
-    <div class="fab-option" onclick="openQuickAdd('todo')"><span class="fab-emoji"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C8A88C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> To-Do</div>
-    <div class="fab-option" onclick="openQuickAdd('idea')"><span class="fab-emoji"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C0A8D0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg></span> Idea</div>
-    <div class="fab-option" onclick="openQuickAdd('event')"><span class="fab-emoji"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8BB0C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span> Event</div>
-    <div class="fab-option" onclick="openQuickAdd('gsd')"><span class="fab-emoji"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4A05A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span> GSD Task</div>
-  </div>
-  <button class="fab" id="fabBtn" onclick="toggleFab()">+</button>
+<!-- ═══ FAB MENU (pops up from center + button) ═══ -->
+<div class="fab-menu-overlay" id="fabMenuOverlay" onclick="closeFab()"></div>
+<div class="fab-menu-popup" id="fabMenu">
+  <div class="fab-option" onclick="openQuickAdd('grocery')"><span class="fab-emoji"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#80B878" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></span> Grocery Item</div>
+  <div class="fab-option" onclick="openQuickAdd('todo')"><span class="fab-emoji"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C8A88C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> To-Do</div>
+  <div class="fab-option" onclick="openQuickAdd('idea')"><span class="fab-emoji"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C0A8D0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg></span> Idea</div>
+  <div class="fab-option" onclick="openQuickAdd('event')"><span class="fab-emoji"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8BB0C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span> Event</div>
+  <div class="fab-option" onclick="openQuickAdd('gsd')"><span class="fab-emoji"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4A05A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span> GSD Task</div>
 </div>
 
-<!-- ═══ BOTTOM NAV ═══ -->
+<!-- ═══ BOTTOM NAV (with center + button) ═══ -->
 <div class="bottom-nav">
   <button class="nav-item active" data-nav="home" onclick="switchTab('home', this)">
     <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
@@ -2583,6 +2747,12 @@
     <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></span>
     <span class="nav-label">Grocery</span>
   </button>
+
+  <!-- CENTER + BUTTON -->
+  <button class="nav-fab" id="fabBtn" onclick="toggleFab()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+
   <button class="nav-item" data-nav="gsd" onclick="switchTab('gsd', this)">
     <span class="nav-icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
     <span class="nav-label">GSD</span>
@@ -2594,10 +2764,6 @@
   <button class="nav-item" data-nav="ideas" onclick="switchTab('ideas', this)">
     <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg></span>
     <span class="nav-label">Ideas</span>
-  </button>
-  <button class="nav-item" data-nav="school" onclick="switchTab('school', this)">
-    <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
-    <span class="nav-label">School</span>
   </button>
 </div>
 

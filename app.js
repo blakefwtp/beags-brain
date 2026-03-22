@@ -1025,11 +1025,131 @@ function updateSuggestions() {
   ).join('');
 }
 
-function sendNudge(btn) {
-  btn.textContent = 'Sent! ✓';
-  btn.style.background = 'var(--success)';
-  setTimeout(() => { btn.textContent = 'Send hint'; btn.style.background = ''; }, 2000);
-  showToast('Nudge sent!', 'He\'ll see it as a push notification');
+async function sendNudge(btn) {
+  const sub = S.get('husbandSub', null);
+  if (!sub) {
+    showToast('Not connected', 'Set up notifications first so he can receive nudges.');
+    return;
+  }
+
+  // Get the nudge text from the sibling .sug-text
+  const card = btn.closest('.suggestion-card');
+  const textEl = card ? card.querySelector('.sug-text') : null;
+  const nudgeText = textEl ? textEl.textContent : 'Your wife sent you a nudge!';
+
+  // Find which tank category this is from
+  let lowestType = 'help', lowestVal = 100;
+  ['touch','time','help','emotional'].forEach(type => {
+    if (tankValues[type] < lowestVal) { lowestVal = tankValues[type]; lowestType = type; }
+  });
+  const title = tankConfig[lowestType].lowNotif.title;
+
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    const resp = await fetch('/api/nudge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub, title: title, body: nudgeText })
+    });
+
+    if (resp.ok) {
+      btn.textContent = 'Sent! ✓';
+      btn.style.background = 'var(--success)';
+      setTimeout(() => { btn.textContent = 'Send hint'; btn.style.background = ''; btn.disabled = false; }, 2000);
+      showToast('Nudge sent!', 'He just got a push notification');
+    } else {
+      const data = await resp.json().catch(() => ({}));
+      if (data.code === 'EXPIRED') {
+        S.del('husbandSub');
+        renderNotifSetup();
+        showToast('Connection expired', 'Have him open the pairing page again and reconnect.');
+      } else {
+        throw new Error(data.error || 'Failed');
+      }
+      btn.textContent = 'Send hint';
+      btn.disabled = false;
+    }
+  } catch (err) {
+    console.error('Nudge error:', err);
+    btn.textContent = 'Failed';
+    btn.style.background = '#E8B0B0';
+    setTimeout(() => { btn.textContent = 'Send hint'; btn.style.background = ''; btn.disabled = false; }, 2000);
+    showToast('Nudge failed', 'Check your connection and try again.');
+  }
+}
+
+// ── PUSH NOTIFICATION PAIRING ──
+function renderNotifSetup() {
+  const container = document.getElementById('notifSetupContent');
+  if (!container) return;
+  const sub = S.get('husbandSub', null);
+
+  if (sub) {
+    container.innerHTML =
+      '<h4>Push Notifications</h4>' +
+      '<div class="paired-status">&#10003; Connected to husband\'s phone</div>' +
+      '<p>When you send a nudge, he\'ll get a real push notification.</p>' +
+      '<button class="setup-btn outline" onclick="openPairModal()">Update Code</button>' +
+      '<button class="setup-btn danger" onclick="disconnectHusband()">Disconnect</button>';
+  } else {
+    container.innerHTML =
+      '<h4>Push Notifications</h4>' +
+      '<p>Connect your husband\'s phone so nudges send real push notifications.</p>' +
+      '<button class="setup-btn" onclick="copyPairLink()">Copy Invite Link</button>' +
+      '<button class="setup-btn outline" onclick="openPairModal()">Enter Code</button>';
+  }
+}
+
+function copyPairLink() {
+  const link = window.location.origin + '/pair.html';
+  navigator.clipboard.writeText(link).then(() => {
+    showToast('Link copied!', 'Text this to your husband. He opens it and taps Allow.');
+  }).catch(() => {
+    showToast('Pair link', link);
+  });
+}
+
+function openPairModal() {
+  document.getElementById('pairModal').style.display = 'flex';
+  document.getElementById('pairCodeInput').value = '';
+  document.getElementById('pairError').textContent = '';
+  document.getElementById('pairCodeInput').focus();
+}
+
+function closePairModal() {
+  document.getElementById('pairModal').style.display = 'none';
+}
+
+function savePairCode() {
+  const input = document.getElementById('pairCodeInput').value.trim();
+  const errorEl = document.getElementById('pairError');
+  errorEl.textContent = '';
+
+  if (!input) {
+    errorEl.textContent = 'Paste the code from your husband\'s phone.';
+    return;
+  }
+
+  try {
+    const decoded = JSON.parse(atob(input));
+    if (!decoded.endpoint || !decoded.keys) {
+      throw new Error('Invalid subscription format');
+    }
+    S.set('husbandSub', decoded);
+    closePairModal();
+    renderNotifSetup();
+    showToast('Connected!', 'Nudges will now send push notifications to his phone.');
+  } catch (err) {
+    errorEl.textContent = 'Invalid code. Make sure you copied the full code from his phone.';
+  }
+}
+
+function disconnectHusband() {
+  S.del('husbandSub');
+  renderNotifSetup();
+  showToast('Disconnected', 'Push notifications disabled. Reconnect anytime.');
 }
 
 function initTanks() {
@@ -1101,4 +1221,5 @@ renderIdeas();
 initTanks();
 updateSuggestions();
 updatePulse();
+renderNotifSetup();
 recordDailyTankSnapshot();

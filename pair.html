@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Beag's Brain — Pair</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#FFFFFF">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: #C8A88C;
+      --accent-hover: #B89878;
+      --accent-light: #F0E8DF;
+      --text: #3A3330;
+      --text-light: #8A8480;
+      --success: #7AB88C;
+      --white: #FFFFFF;
+      --warm-gray: #EDE8E3;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      background: #FAF8F5;
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .pair-card {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 32px 24px;
+      max-width: 380px;
+      width: 100%;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      text-align: center;
+    }
+
+    .pair-logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .pair-sub {
+      font-size: 14px;
+      color: var(--text-light);
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    .pair-btn {
+      display: inline-block;
+      width: 100%;
+      padding: 14px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .pair-btn:active { background: var(--accent-hover); }
+    .pair-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .pair-btn.success {
+      background: var(--success);
+    }
+
+    .pair-status {
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--text-light);
+      line-height: 1.5;
+    }
+
+    .pair-code-area {
+      margin-top: 20px;
+      display: none;
+    }
+
+    .pair-code-box {
+      background: #F5F2EF;
+      border: 1px solid var(--warm-gray);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 11px;
+      word-break: break-all;
+      max-height: 80px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+      color: var(--text-light);
+      font-family: monospace;
+      text-align: left;
+    }
+
+    .copy-btn {
+      display: inline-block;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      width: 100%;
+    }
+    .copy-btn:active { background: var(--accent-hover); }
+
+    .step-hint {
+      margin-top: 16px;
+      font-size: 12px;
+      color: var(--text-light);
+      line-height: 1.5;
+      background: var(--accent-light);
+      padding: 12px;
+      border-radius: 10px;
+    }
+
+    .error-msg {
+      color: #C0392B;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+
+    .checkmark {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="pair-card" id="mainCard">
+  <div class="pair-logo">Beag's Brain</div>
+  <div class="pair-sub">Your wife wants to send you nudges when she needs you.<br>Allow notifications so you never miss one.</div>
+  <button class="pair-btn" id="allowBtn" onclick="startPairing()">Allow Notifications</button>
+  <div class="pair-status" id="status"></div>
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="pair-code-area" id="codeArea">
+    <div class="step-hint">Copy this code and text it to your wife. She'll paste it in her app to connect.</div>
+    <div class="pair-code-box" id="codeBox"></div>
+    <button class="copy-btn" id="copyBtn" onclick="copyCode()">Copy Code</button>
+  </div>
+</div>
+
+<script>
+  // VAPID public key — must match server
+  const VAPID_PUBLIC_KEY = 'BLSKCG8p86piYcjJtqt56f6j1aHqa2xGVHYeqDO0eceWa6DOuM-hMYEoQnr68HoA-WpAv_P0ovP7FCTSdmUsrpg';
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+
+  async function startPairing() {
+    const btn = document.getElementById('allowBtn');
+    const status = document.getElementById('status');
+    const errorMsg = document.getElementById('errorMsg');
+    errorMsg.textContent = '';
+
+    // Check support
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      errorMsg.textContent = 'Push notifications are not supported on this browser. Try Chrome or Safari.';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Setting up...';
+    status.textContent = 'Registering service worker...';
+
+    try {
+      // Register service worker
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+      status.textContent = 'Requesting permission...';
+
+      // Request permission
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        btn.disabled = false;
+        btn.textContent = 'Allow Notifications';
+        errorMsg.textContent = 'Permission denied. Please allow notifications in your browser settings and try again.';
+        status.textContent = '';
+        return;
+      }
+
+      status.textContent = 'Creating push subscription...';
+
+      // Subscribe to push
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+
+      // Encode subscription as compact base64
+      const subJSON = JSON.stringify(subscription.toJSON());
+      const code = btoa(subJSON);
+
+      // Show success
+      btn.textContent = 'Notifications enabled!';
+      btn.classList.add('success');
+      status.innerHTML = '<span class="checkmark"></span> You\'re all set! Now share the code below.';
+
+      // Show the code
+      const codeArea = document.getElementById('codeArea');
+      const codeBox = document.getElementById('codeBox');
+      codeArea.style.display = 'block';
+      codeBox.textContent = code;
+
+    } catch (err) {
+      console.error('Pairing error:', err);
+      btn.disabled = false;
+      btn.textContent = 'Allow Notifications';
+      errorMsg.textContent = 'Something went wrong: ' + err.message;
+      status.textContent = '';
+    }
+  }
+
+  function copyCode() {
+    const code = document.getElementById('codeBox').textContent;
+    const copyBtn = document.getElementById('copyBtn');
+    navigator.clipboard.writeText(code).then(() => {
+      copyBtn.textContent = 'Copied!';
+      copyBtn.style.background = 'var(--success)';
+      setTimeout(() => {
+        copyBtn.textContent = 'Copy Code';
+        copyBtn.style.background = '';
+      }, 2000);
+    }).catch(() => {
+      // Fallback: select text
+      const range = document.createRange();
+      range.selectNodeContents(document.getElementById('codeBox'));
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      copyBtn.textContent = 'Selected — copy manually';
+    });
+  }
+</script>
+
+</body>
+</html>
