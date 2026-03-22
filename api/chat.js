@@ -61,6 +61,21 @@ Available action types:
 14. read_groceries — Read grocery list (info will be in context, just reference it)
     { "type": "read_groceries", "params": {} }
 
+15. delete_todo — Delete a to-do or GSD task (fuzzy match by text)
+    { "type": "delete_todo", "params": { "text": "partial match text" } }
+
+16. delete_grocery — Delete a grocery item (fuzzy match by text)
+    { "type": "delete_grocery", "params": { "text": "partial match text" } }
+
+17. delete_idea — Delete an idea (fuzzy match by title)
+    { "type": "delete_idea", "params": { "text": "partial match text" } }
+
+18. delete_event — Delete a calendar event (fuzzy match by text, optionally on a specific date)
+    { "type": "delete_event", "params": { "text": "partial match text", "date": "YYYY-M-D" (optional) } }
+
+19. clear_groceries — Clear all grocery items (or all in a category)
+    { "type": "clear_groceries", "params": { "cat": "dairy|meat|produce|pantry|other" (optional, omit to clear all) } }
+
 GUIDELINES:
 - For grocery items, pick the best category. Common mappings: milk/eggs/cheese/butter/yogurt = dairy, chicken/beef/bacon/sausage = meat, fruits/vegetables = produce, bread/rice/pasta/cereal/snacks = pantry, cleaning/paper goods = other.
 - For events, pick a color that makes sense: kids/school = green, work/appointments = blue, fun/social = pink, reminders = yellow, personal = lavender

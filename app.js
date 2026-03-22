@@ -1480,6 +1480,84 @@ function executeActions(actions) {
         // These are informational — Claude already has the context
         break;
 
+      case 'delete_todo': {
+        const dSearch = (p.text || '').toLowerCase();
+        const dIdx = todos.findIndex(t => t.text.toLowerCase().includes(dSearch));
+        if (dIdx >= 0) {
+          const removed = todos.splice(dIdx, 1)[0];
+          save('todos', todos);
+          renderTodos(); renderGsd(); updateDateLine();
+          confirmations.push('Deleted: ' + removed.text);
+        } else {
+          confirmations.push('Couldn\'t find "' + p.text + '" to delete');
+        }
+        break;
+      }
+
+      case 'delete_grocery': {
+        const dgSearch = (p.text || '').toLowerCase();
+        const dgIdx = groceries.findIndex(g => g.text.toLowerCase().includes(dgSearch));
+        if (dgIdx >= 0) {
+          const removed = groceries.splice(dgIdx, 1)[0];
+          save('groceries', groceries);
+          renderGroceries();
+          confirmations.push('Removed from groceries: ' + removed.text);
+        } else {
+          confirmations.push('Couldn\'t find "' + p.text + '" in groceries');
+        }
+        break;
+      }
+
+      case 'delete_idea': {
+        const diSearch = (p.text || '').toLowerCase();
+        const diIdx = ideas.findIndex(i => i.title.toLowerCase().includes(diSearch));
+        if (diIdx >= 0) {
+          const removed = ideas.splice(diIdx, 1)[0];
+          save('ideas', ideas);
+          renderIdeas();
+          confirmations.push('Deleted idea: ' + removed.title);
+        } else {
+          confirmations.push('Couldn\'t find idea "' + p.text + '"');
+        }
+        break;
+      }
+
+      case 'delete_event': {
+        const deSearch = (p.text || '').toLowerCase();
+        let deleted = false;
+        const dateKeys = p.date ? [p.date] : Object.keys(events);
+        for (const key of dateKeys) {
+          if (events[key]) {
+            const evIdx = events[key].findIndex(ev => ev.t.toLowerCase().includes(deSearch));
+            if (evIdx >= 0) {
+              const removed = events[key].splice(evIdx, 1)[0];
+              if (events[key].length === 0) delete events[key];
+              save('events', events);
+              renderMiniMonth(); renderThisWeek(); updateDateLine();
+              if (document.getElementById('tab-calendar').classList.contains('active')) renderFullCal();
+              confirmations.push('Deleted event: ' + removed.t);
+              deleted = true;
+              break;
+            }
+          }
+        }
+        if (!deleted) confirmations.push('Couldn\'t find event "' + p.text + '"');
+        break;
+      }
+
+      case 'clear_groceries': {
+        if (p.cat) {
+          groceries = groceries.filter(g => g.cat !== p.cat);
+          confirmations.push('Cleared all ' + p.cat + ' items');
+        } else {
+          groceries = [];
+          confirmations.push('Cleared entire grocery list');
+        }
+        save('groceries', groceries);
+        renderGroceries();
+        break;
+      }
+
       default:
         break;
     }
