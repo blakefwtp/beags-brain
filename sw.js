@@ -1,7 +1,8 @@
-const CACHE_NAME = 'beags-brain-v1';
+const CACHE_NAME = 'beags-brain-v2';
 const ASSETS = [
   '/',
   '/index.html',
+  '/app.js',
   '/manifest.json',
   'https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap'
 ];
