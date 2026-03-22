@@ -725,17 +725,21 @@ function toggleCompleted(type) {
   arrow.classList.toggle('open');
 }
 
-// ── FAB ──
+// ── FAB (center nav button) ──
 let fabOpen = false;
 function toggleFab() {
   fabOpen = !fabOpen;
   document.getElementById('fabBtn').classList.toggle('open', fabOpen);
   document.getElementById('fabMenu').classList.toggle('open', fabOpen);
+  const overlay = document.getElementById('fabMenuOverlay');
+  if (overlay) overlay.classList.toggle('open', fabOpen);
 }
 function closeFab() {
   fabOpen = false;
   document.getElementById('fabBtn').classList.remove('open');
   document.getElementById('fabMenu').classList.remove('open');
+  const overlay = document.getElementById('fabMenuOverlay');
+  if (overlay) overlay.classList.remove('open');
 }
 
 // ── QUICK ADD ──
