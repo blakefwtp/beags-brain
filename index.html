@@ -2421,31 +2421,36 @@
 
   .chat-fab {
     position: fixed;
-    bottom: calc(80px + var(--safe-bottom));
-    left: 20px;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: white;
-    border: none;
+    bottom: calc(72px + var(--safe-bottom));
+    left: 16px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 18px;
+    background: var(--white);
+    color: var(--text-medium);
+    border: 1px solid var(--warm-gray);
     cursor: pointer;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-sm);
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
     z-index: 90;
-    transition: transform 0.2s, background 0.15s;
+    transition: transform 0.2s, background 0.15s, box-shadow 0.15s;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .chat-fab:active { transform: scale(0.92); }
-  .chat-fab.active { background: var(--text-medium); }
+  .chat-fab:active { transform: scale(0.95); box-shadow: var(--shadow-md); }
+  .chat-fab.active { background: var(--accent-light); border-color: var(--accent); color: var(--text-dark); }
 
   .chat-fab svg {
-    width: 24px;
-    height: 24px;
+    width: 16px;
+    height: 16px;
     fill: none;
-    stroke: white;
+    stroke: var(--accent);
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
@@ -2453,7 +2458,7 @@
 
   @media (min-width: 500px) {
     .chat-fab {
-      left: calc(50% - 215px + 20px);
+      left: calc(50% - 215px + 16px);
     }
   }
 
@@ -3056,7 +3061,7 @@
   </div>
   <div class="chat-messages" id="chatMessages">
     <div class="chat-welcome" id="chatWelcome">
-      <div class="chat-welcome-icon">&#129302;</div>
+      <div class="chat-welcome-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg></div>
       <h4>Your personal assistant</h4>
       <p>I can add events, manage your groceries, check off to-dos, set timers, and more. Just ask!</p>
       <div class="chat-suggestions">
