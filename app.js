@@ -878,7 +878,7 @@ function hideContext() {
 
 // ── ESCAPE KEY ──
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeQuickAdd(); closeTimer(); hideContext(); closeFab(); closeColorBlockModal(); }
+  if (e.key === 'Escape') { closeQuickAdd(); closeTimer(); hideContext(); closeFab(); closeColorBlockModal(); closeChat(); }
 });
 
 // ── DAILY ENCOURAGEMENT ──
@@ -1208,6 +1208,348 @@ function updatePulse() {
 // ── SERVICE WORKER ──
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// ══════════════════════════════════════════════
+// ── AI CHAT ASSISTANT ──
+// ══════════════════════════════════════════════
+
+let chatOpen = false;
+let chatMessages = [];
+let isRecording = false;
+let recognition = null;
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chatOverlay').classList.toggle('open', chatOpen);
+  document.getElementById('chatFab').classList.toggle('active', chatOpen);
+  if (chatOpen) {
+    setTimeout(() => document.getElementById('chatInput').focus(), 350);
+  } else {
+    stopVoice();
+  }
+}
+
+function closeChat() {
+  if (!chatOpen) return;
+  chatOpen = false;
+  document.getElementById('chatOverlay').classList.remove('open');
+  document.getElementById('chatFab').classList.remove('active');
+  stopVoice();
+}
+
+function useChatSuggestion(text) {
+  document.getElementById('chatInput').value = text;
+  sendChat();
+}
+
+function getChatContext() {
+  const now = new Date();
+  const today = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
+
+  // Get upcoming 7 days of events
+  const upcoming = {};
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() + i);
+    const key = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+    if (events[key] && events[key].length > 0) {
+      upcoming[key] = events[key];
+    }
+  }
+
+  // Get active tab
+  let activeTab = 'home';
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    if (btn.classList.contains('active') && btn.dataset.nav) activeTab = btn.dataset.nav;
+  });
+
+  return {
+    today: today,
+    activeTab: activeTab,
+    todoCount: todos.filter(t => !t.done && t.type === 'todo').length,
+    gsdCount: todos.filter(t => !t.done && t.type === 'gsd').length,
+    groceryCount: groceries.filter(g => !g.done).length,
+    upcomingEvents: upcoming,
+    tankLevels: { touch: tankValues.touch, time: tankValues.time, help: tankValues.help, emotional: tankValues.emotional },
+    todos: todos.filter(t => !t.done).map(t => ({ id: t.id, text: t.text, type: t.type, done: t.done })),
+    groceries: groceries.filter(g => !g.done).map(g => ({ id: g.id, text: g.text, cat: g.cat, done: g.done }))
+  };
+}
+
+function addChatMessage(role, text) {
+  const welcome = document.getElementById('chatWelcome');
+  if (welcome) welcome.style.display = 'none';
+
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  div.textContent = text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  chatMessages.push({ role, text });
+}
+
+function addActionConfirm(text) {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg action-confirm';
+  div.textContent = text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function showTyping() {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-typing';
+  div.id = 'chatTypingIndicator';
+  div.innerHTML = '<span></span><span></span><span></span>';
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function hideTyping() {
+  const el = document.getElementById('chatTypingIndicator');
+  if (el) el.remove();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  input.value = '';
+  addChatMessage('user', msg);
+  showTyping();
+
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, context: getChatContext() })
+    });
+
+    hideTyping();
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      addChatMessage('assistant', err.reply || 'Hmm, something went wrong. Try again?');
+      return;
+    }
+
+    const data = await resp.json();
+    addChatMessage('assistant', data.reply || 'Done!');
+
+    if (data.actions && data.actions.length > 0) {
+      executeActions(data.actions);
+    }
+  } catch (err) {
+    hideTyping();
+    addChatMessage('assistant', 'Sorry, I couldn\'t connect. Check your internet and try again!');
+  }
+}
+
+function executeActions(actions) {
+  const confirmations = [];
+
+  actions.forEach(action => {
+    const p = action.params || {};
+
+    switch (action.type) {
+      case 'add_event': {
+        const key = p.date || (NOW.getFullYear() + '-' + (NOW.getMonth() + 1) + '-' + NOW.getDate());
+        const timeDisplay = p.time ? to12hr(p.time) : '';
+        const text = timeDisplay ? p.text + ' ' + timeDisplay : (p.text || 'Event');
+        if (!events[key]) events[key] = [];
+        events[key].push({ t: text, c: p.color || 'blue' });
+        save('events', events);
+        renderMiniMonth(); renderThisWeek(); updateDateLine();
+        if (document.getElementById('tab-calendar').classList.contains('active')) renderFullCal();
+        confirmations.push('Added event: ' + text);
+        break;
+      }
+
+      case 'add_todo': {
+        todos.push({ id: getId(), text: p.text || 'To-do', done: false, doneAt: null, type: 'todo' });
+        save('todos', todos);
+        renderTodos(); updateDateLine();
+        confirmations.push('Added to-do: ' + (p.text || 'To-do'));
+        break;
+      }
+
+      case 'add_gsd': {
+        const item = { id: getId(), text: p.text || 'Task', done: false, doneAt: null, type: 'gsd' };
+        if (p.sub) item.sub = p.sub;
+        todos.push(item);
+        save('todos', todos);
+        renderGsd();
+        confirmations.push('Added GSD task: ' + (p.text || 'Task'));
+        break;
+      }
+
+      case 'add_grocery': {
+        const gText = p.qty && p.qty > 1 ? (p.text || 'Item') + ' (' + p.qty + ')' : (p.text || 'Item');
+        groceries.push({ id: getId(), text: gText, cat: p.cat || 'other', done: false, doneAt: null, qty: p.qty || 1 });
+        save('groceries', groceries);
+        renderGroceries();
+        confirmations.push('Added to grocery list: ' + gText);
+        break;
+      }
+
+      case 'add_idea': {
+        ideas.push({ id: getId(), title: p.title || 'Idea', body: p.body || '', tag: p.tag || 'New', tagColor: 'var(--soft-yellow)' });
+        save('ideas', ideas);
+        renderIdeas();
+        confirmations.push('Captured idea: ' + (p.title || 'Idea'));
+        break;
+      }
+
+      case 'check_todo': {
+        const searchText = (p.text || '').toLowerCase();
+        const match = todos.find(t => !t.done && t.text.toLowerCase().includes(searchText));
+        if (match) {
+          match.done = true;
+          match.doneAt = Date.now();
+          save('todos', todos);
+          renderTodos(); renderGsd(); updateDateLine();
+          confirmations.push('Checked off: ' + match.text);
+        } else {
+          confirmations.push('Couldn\'t find a matching to-do for "' + p.text + '"');
+        }
+        break;
+      }
+
+      case 'check_grocery': {
+        const gSearch = (p.text || '').toLowerCase();
+        const gMatch = groceries.find(g => !g.done && g.text.toLowerCase().includes(gSearch));
+        if (gMatch) {
+          gMatch.done = true;
+          gMatch.doneAt = Date.now();
+          save('groceries', groceries);
+          renderGroceries();
+          confirmations.push('Checked off grocery: ' + gMatch.text);
+        } else {
+          confirmations.push('Couldn\'t find a matching grocery item for "' + p.text + '"');
+        }
+        break;
+      }
+
+      case 'set_timer': {
+        openTimer(p.task || 'Focus', p.minutes || 15);
+        confirmations.push('Timer set: ' + (p.task || 'Focus') + ' for ' + (p.minutes || 15) + ' min');
+        break;
+      }
+
+      case 'switch_tab': {
+        const tabBtn = document.querySelector('.nav-item[data-nav="' + (p.tab || 'home') + '"]');
+        switchTab(p.tab || 'home', tabBtn);
+        if (p.tab === 'calendar') renderFullCal();
+        confirmations.push('Switched to ' + (p.tab || 'home') + ' tab');
+        break;
+      }
+
+      case 'update_tank': {
+        const tankType = p.tankType || p.type;
+        if (tankType && typeof p.value === 'number') {
+          updateTank(tankType, p.value);
+          confirmations.push('Updated ' + tankType + ' tank to ' + p.value + '%');
+        }
+        break;
+      }
+
+      case 'add_color_block': {
+        colorBlocks.push({
+          id: nextBlockId++,
+          color: p.color || '#A8C8D8',
+          label: p.label || '',
+          startDate: p.startDate,
+          endDate: p.endDate
+        });
+        save('colorBlocks', colorBlocks);
+        save('nextBlockId', nextBlockId);
+        renderMiniMonth();
+        if (document.getElementById('tab-calendar').classList.contains('active')) renderFullCal();
+        confirmations.push('Added color block: ' + (p.label || 'Block'));
+        break;
+      }
+
+      case 'read_calendar':
+      case 'read_todos':
+      case 'read_groceries':
+        // These are informational — Claude already has the context
+        break;
+
+      default:
+        break;
+    }
+  });
+
+  if (confirmations.length > 0) {
+    addActionConfirm(confirmations.join(' | '));
+  }
+}
+
+// ── VOICE INPUT (Web Speech API) ──
+function toggleVoice() {
+  if (isRecording) {
+    stopVoice();
+  } else {
+    startVoice();
+  }
+}
+
+function startVoice() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    showToast('Voice not supported', 'Use a different browser or type instead');
+    return;
+  }
+
+  recognition = new SpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = function() {
+    isRecording = true;
+    document.getElementById('voiceBtn').classList.add('recording');
+    document.getElementById('chatListeningLabel').innerHTML = '<div class="chat-listening">Listening...</div>';
+  };
+
+  recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;
+    document.getElementById('chatInput').value = transcript;
+    stopVoice();
+    sendChat();
+  };
+
+  recognition.onerror = function(event) {
+    stopVoice();
+    if (event.error !== 'no-speech' && event.error !== 'aborted') {
+      showToast('Voice error', event.error);
+    }
+  };
+
+  recognition.onend = function() {
+    stopVoice();
+  };
+
+  try {
+    recognition.start();
+  } catch (e) {
+    stopVoice();
+  }
+}
+
+function stopVoice() {
+  isRecording = false;
+  document.getElementById('voiceBtn').classList.remove('recording');
+  document.getElementById('chatListeningLabel').innerHTML = '';
+  if (recognition) {
+    try { recognition.stop(); } catch (e) {}
+    recognition = null;
+  }
 }
 
 // ══════════════════════════════════════════════

@@ -2,6 +2,7 @@
   "name": "beags-brain",
   "private": true,
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "web-push": "^3.6.0"
   }
 }
