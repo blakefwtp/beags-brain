@@ -2498,6 +2498,20 @@
     color: var(--text-dark);
   }
 
+  .chat-new-btn {
+    padding: 5px 12px;
+    border: 1px solid var(--warm-gray);
+    background: var(--white);
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text-light);
+    cursor: pointer;
+  }
+
+  .chat-new-btn:active { background: var(--cream); }
+
   .chat-close-btn {
     width: 32px;
     height: 32px;
@@ -3056,6 +3070,7 @@
 
 <div class="chat-overlay" id="chatOverlay">
   <div class="chat-header">
+    <button class="chat-new-btn" onclick="clearChatHistory()" title="New chat">New Chat</button>
     <h3>Hey, what do you need?</h3>
     <button class="chat-close-btn" onclick="toggleChat()">&#10005;</button>
   </div>

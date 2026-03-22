@@ -1238,6 +1238,31 @@ function closeChat() {
   stopVoice();
 }
 
+function clearChatHistory() {
+  chatHistory = [];
+  save('chatHistory', chatHistory);
+  const msgs = document.getElementById('chatMessages');
+  const welcome = document.getElementById('chatWelcome');
+  msgs.innerHTML = '';
+  if (welcome) msgs.appendChild(welcome);
+  welcome.style.display = '';
+}
+
+// Restore prior chat messages on load
+function restoreChatHistory() {
+  if (chatHistory.length === 0) return;
+  const welcome = document.getElementById('chatWelcome');
+  if (welcome) welcome.style.display = 'none';
+  chatHistory.forEach(h => {
+    addChatMessage(h.role, h.content);
+  });
+  // Auto-expire history after 2 hours of inactivity
+  const lastMsg = chatHistory[chatHistory.length - 1];
+  if (lastMsg && lastMsg._ts && (Date.now() - lastMsg._ts) > 2 * 60 * 60 * 1000) {
+    clearChatHistory();
+  }
+}
+
 function useChatSuggestion(text) {
   document.getElementById('chatInput').value = text;
   sendChat();
@@ -1314,8 +1339,8 @@ function hideTyping() {
   if (el) el.remove();
 }
 
-// Conversation history for multi-turn chat
-let chatHistory = [];
+// Conversation history — persists to localStorage so follow-ups work across reloads
+let chatHistory = S.get('chatHistory', []);
 
 async function sendChat() {
   const input = document.getElementById('chatInput');
@@ -1324,7 +1349,8 @@ async function sendChat() {
 
   input.value = '';
   addChatMessage('user', msg);
-  chatHistory.push({ role: 'user', content: msg });
+  chatHistory.push({ role: 'user', content: msg, _ts: Date.now() });
+  save('chatHistory', chatHistory);
   showTyping();
 
   try {
@@ -1345,7 +1371,8 @@ async function sendChat() {
     const data = await resp.json();
     const reply = data.reply || 'Done!';
     addChatMessage('assistant', reply);
-    chatHistory.push({ role: 'assistant', content: reply });
+    chatHistory.push({ role: 'assistant', content: reply, _ts: Date.now() });
+    save('chatHistory', chatHistory);
 
     if (data.actions && data.actions.length > 0) {
       executeActions(data.actions);
@@ -1653,3 +1680,4 @@ updateSuggestions();
 updatePulse();
 renderNotifSetup();
 recordDailyTankSnapshot();
+restoreChatHistory();
