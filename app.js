@@ -14,36 +14,79 @@ const SUPA_URL = 'https://tienyxdafspakjjuhufb.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpZW55eGRhZnNwYWtqanVodWZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMzAyMzIsImV4cCI6MjA4OTgwNjIzMn0.soYFcvGFJj4bXeTXm31qq3tLb52xnNIAy1dawaCH7mM';
 const SUPA_HEADERS = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' };
 
-// Keys to sync to cloud (skip chatHistory — session-only)
-const SYNC_KEYS = ['events','todos','groceries','ideas','colorBlocks','reminders','tanks','tankHistory','nextId'];
+// Keys to sync to cloud (skip chatHistory — session-only, skip husbandSub — device-specific)
+const SYNC_KEYS = ['events','todos','groceries','ideas','colorBlocks','reminders','tanks','tankHistory','nextId','nextBlockId'];
 
-// Push a single key to Supabase (non-blocking)
+// Debounced write queue — batches rapid saves into one request
+let _syncQueue = {};
+let _syncTimer = null;
+
 function syncToCloud(key, value) {
-  fetch(SUPA_URL + '/rest/v1/app_data', {
-    method: 'POST',
-    headers: { ...SUPA_HEADERS, 'Prefer': 'resolution=merge-duplicates' },
-    body: JSON.stringify({ key: key, value: value })
-  }).catch(() => {}); // offline — ignore
+  if (!SYNC_KEYS.includes(key)) return;
+  _syncQueue[key] = value;
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(flushSyncQueue, 500);
+}
+
+async function flushSyncQueue() {
+  var keys = Object.keys(_syncQueue);
+  if (keys.length === 0) return;
+  var batch = keys.map(function(k) { return { key: k, value: _syncQueue[k] }; });
+  _syncQueue = {};
+
+  try {
+    var resp = await fetch(SUPA_URL + '/rest/v1/app_data', {
+      method: 'POST',
+      headers: Object.assign({}, SUPA_HEADERS, { 'Prefer': 'resolution=merge-duplicates' }),
+      body: JSON.stringify(batch)
+    });
+    updateSyncDot(resp.ok ? 'ok' : 'err');
+  } catch(e) {
+    // Offline — re-queue
+    batch.forEach(function(item) { _syncQueue[item.key] = item.value; });
+    updateSyncDot('off');
+  }
 }
 
 // Pull all data from Supabase and merge
 async function syncFromCloud() {
   try {
-    const resp = await fetch(SUPA_URL + '/rest/v1/app_data?select=key,value,updated_at', { headers: SUPA_HEADERS });
-    if (!resp.ok) return;
-    const rows = await resp.json();
-    let changed = false;
-    rows.forEach(row => {
+    var resp = await fetch(SUPA_URL + '/rest/v1/app_data?select=key,value,updated_at', { headers: SUPA_HEADERS });
+    if (!resp.ok) { updateSyncDot('err'); return; }
+    var rows = await resp.json();
+
+    // If cloud is empty, push all local data as initial seed
+    if (!Array.isArray(rows) || rows.length === 0) {
+      pushAllToCloud();
+      updateSyncDot('ok');
+      return;
+    }
+
+    var changed = false;
+    rows.forEach(function(row) {
       if (!SYNC_KEYS.includes(row.key)) return;
-      const localRaw = localStorage.getItem('bb_' + row.key);
-      const cloudStr = JSON.stringify(row.value);
+      var localRaw = localStorage.getItem('bb_' + row.key);
+      var cloudStr = JSON.stringify(row.value);
       if (localRaw !== cloudStr) {
         localStorage.setItem('bb_' + row.key, cloudStr);
         changed = true;
       }
     });
     if (changed) reloadAppData();
-  } catch(e) { /* offline */ }
+    updateSyncDot('ok');
+  } catch(e) {
+    updateSyncDot('off');
+  }
+}
+
+// Seed cloud with all local data (runs once when cloud is empty)
+function pushAllToCloud() {
+  SYNC_KEYS.forEach(function(key) {
+    var raw = localStorage.getItem('bb_' + key);
+    if (raw) {
+      try { syncToCloud(key, JSON.parse(raw)); } catch(e) {}
+    }
+  });
 }
 
 function reloadAppData() {
@@ -54,13 +97,41 @@ function reloadAppData() {
   colorBlocks = S.get('colorBlocks', []);
   reminders = S.get('reminders', []);
   nextId = S.get('nextId', 1);
+  nextBlockId = S.get('nextBlockId', 1);
   tankValues = S.get('tanks', { touch: 50, time: 50, help: 50, emotional: 50, _updated: null });
   tankHistory = S.get('tankHistory', []);
-  // Re-render everything
-  renderMiniMonth(); renderThisWeek(); renderTodos(); renderGsd();
-  renderGroceries(); renderIdeas(); renderReminders();
-  initTanks(); updatePulse(); updateDateLine();
+  // Re-render everything safely
+  try {
+    renderMiniMonth(); renderThisWeek(); renderTodos(); renderGsd();
+    renderGroceries(); renderIdeas(); renderReminders();
+    initTanks(); updatePulse(); updateDateLine(); updateSuggestions();
+  } catch(e) {}
 }
+
+// Tiny sync status dot (top-right corner)
+function updateSyncDot(status) {
+  var dot = document.getElementById('syncDot');
+  if (!dot) {
+    dot = document.createElement('div');
+    dot.id = 'syncDot';
+    dot.style.cssText = 'position:fixed;top:10px;right:10px;width:8px;height:8px;border-radius:50%;z-index:9999;transition:background .3s,opacity .5s;opacity:0.6;pointer-events:none;';
+    document.body.appendChild(dot);
+  }
+  dot.style.opacity = '0.6';
+  if (status === 'ok') {
+    dot.style.background = '#4CAF50';
+    setTimeout(function() { dot.style.opacity = '0'; }, 2000);
+  } else if (status === 'off') {
+    dot.style.background = '#FF9800';
+  } else {
+    dot.style.background = '#f44336';
+  }
+}
+
+// Sync when user returns to the app (tab focus / phone unlock)
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden) syncFromCloud();
+});
 
 // ── DATA STORES (localStorage + cloud backed) ──
 let events = S.get('events', {});
@@ -711,7 +782,6 @@ function deleteGrocery(id) {
   groceries = groceries.filter(g => g.id !== id);
   save('groceries', groceries);
   renderGroceries();
-}
 }
 
 // ── H-E-B / INSTACART INTEGRATION ──

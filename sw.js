@@ -1,4 +1,4 @@
-const CACHE_NAME = 'beags-brain-v4';
+const CACHE_NAME = 'beags-brain-v5';
 
 // Only cache fonts and icons — app files always fetched fresh
 const CACHE_ASSETS = [
@@ -31,6 +31,9 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+
+  // Never cache Supabase API calls
+  if (url.hostname.includes('supabase.co')) return;
 
   // App files: always network, no caching
   if (url.pathname === '/' || url.pathname.endsWith('.html') || url.pathname.endsWith('.js')) {
