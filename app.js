@@ -321,7 +321,7 @@ function renderFullCal() {
         evts.forEach((ev, idx) => {
           const evDiv = document.createElement('div');
           evDiv.className = 'fullcal-ev ' + ev.c;
-          evDiv.textContent = ev.t;
+          evDiv.textContent = ev.t + (ev.n ? ' 📝' : '');
           evDiv.addEventListener('click', (e) => {
             e.stopPropagation();
             openEventEditor(key, idx);
@@ -458,10 +458,13 @@ function applyZoom(value) {
     }
   });
 
-  // Double-tap to toggle between 1x and 2.5x
+  // Double-tap to toggle between 1x and 2.5x (ignore taps on events/blocks)
   let lastTap = 0;
   wrapper.addEventListener('touchend', function(e) {
     if (e.touches.length === 0 && !isPinching) {
+      // Don't trigger zoom if tapping on an event chip or block chip
+      var target = e.target;
+      if (target.classList.contains('fullcal-ev') || target.closest('.fullcal-ev')) return;
       const now = Date.now();
       if (now - lastTap < 300) {
         applyZoom(calZoom > 1.1 ? 1 : 2.5);
@@ -571,8 +574,8 @@ function renderThisWeek() {
     const key = d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
     const dayEvents = events[key] || [];
     const dayName = DAYS[d.getDay()].slice(0, 3);
-    dayEvents.forEach(ev => {
-      items.push({ text: ev.t, color: ev.c, day: dayName, date: new Date(d) });
+    dayEvents.forEach((ev, idx) => {
+      items.push({ text: ev.t, color: ev.c, day: dayName, date: new Date(d), dateKey: key, evIdx: idx, hasNotes: !!ev.n });
     });
   }
 
@@ -582,9 +585,16 @@ function renderThisWeek() {
   }
 
   const colorMap = { pink: 'var(--soft-pink)', green: 'var(--soft-green)', blue: 'var(--soft-blue)', yellow: 'var(--soft-yellow)', lavender: 'var(--soft-lavender)' };
-  body.innerHTML = items.map(it =>
-    '<div class="sched-item"><div class="sched-dot" style="background:' + (colorMap[it.color] || 'var(--mid-gray)') + ';"></div><span>' + esc(it.text) + '</span><span class="sched-time">' + it.day + '</span></div>'
+  body.innerHTML = items.map((it, i) =>
+    '<div class="sched-item" data-datekey="' + it.dateKey + '" data-evidx="' + it.evIdx + '" style="cursor:pointer;"><div class="sched-dot" style="background:' + (colorMap[it.color] || 'var(--mid-gray)') + ';"></div><span>' + esc(it.text) + (it.hasNotes ? ' <span style="font-size:11px;color:var(--text-light);">📝</span>' : '') + '</span><span class="sched-time">' + it.day + '</span></div>'
   ).join('');
+
+  // Make week items tappable
+  body.querySelectorAll('.sched-item[data-datekey]').forEach(el => {
+    el.addEventListener('click', () => {
+      openEventEditor(el.dataset.datekey, parseInt(el.dataset.evidx));
+    });
+  });
 }
 
 // ── TO-DO / GSD RENDERING ──
@@ -1176,54 +1186,75 @@ function openEventEditor(dateKey, eventIdx) {
   editingEventIdx = eventIdx;
   const ev = events[dateKey][eventIdx];
 
-  const menu = document.getElementById('contextMenu');
-  const overlay = document.getElementById('contextOverlay');
+  // Parse date for display
+  const parts = dateKey.split('-');
+  const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-  menu.innerHTML =
-    '<div style="padding:14px 18px 8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-light);">' + esc(ev.t) + '</div>' +
-    '<div class="context-menu-item" onclick="editEventText()"><span class="cm-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span> Edit</div>' +
-    '<div class="context-menu-item" onclick="changeEventColor(\'pink\')"><span class="cm-icon" style="color:var(--soft-pink);">●</span> Pink</div>' +
-    '<div class="context-menu-item" onclick="changeEventColor(\'green\')"><span class="cm-icon" style="color:var(--soft-green);">●</span> Green</div>' +
-    '<div class="context-menu-item" onclick="changeEventColor(\'blue\')"><span class="cm-icon" style="color:var(--soft-blue);">●</span> Blue</div>' +
-    '<div class="context-menu-item" onclick="changeEventColor(\'yellow\')"><span class="cm-icon" style="color:var(--soft-yellow);">●</span> Yellow</div>' +
-    '<div class="context-menu-item" onclick="changeEventColor(\'lavender\')"><span class="cm-icon" style="color:var(--soft-lavender);">●</span> Lavender</div>' +
-    '<div class="context-menu-item" style="color:var(--danger);" onclick="deleteCalEvent()"><span class="cm-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></span> Delete</div>';
-
-  overlay.classList.add('visible');
-  // Center the menu on screen
-  menu.style.left = '50%';
-  menu.style.top = '50%';
-  menu.style.transform = 'translate(-50%, -50%)';
-  requestAnimationFrame(() => menu.classList.add('visible'));
-}
-
-function editEventText() {
-  hideContext();
-  if (!editingEventKey || editingEventIdx === null) return;
-  const ev = events[editingEventKey][editingEventIdx];
-  const newText = prompt('Edit event:', ev.t);
-  if (newText !== null && newText.trim()) {
-    events[editingEventKey][editingEventIdx].t = newText.trim();
-    save('events', events);
-    renderMiniMonth(); renderThisWeek(); renderFullCal();
+  // Parse time from event text (e.g. "Dentist 2:30 PM" → extract time)
+  const timeMatch = ev.t.match(/\s+(\d{1,2}:\d{2}\s*(?:AM|PM))$/i);
+  let titleText = ev.t;
+  let timeVal = '';
+  if (timeMatch) {
+    titleText = ev.t.replace(timeMatch[0], '').trim();
+    // Convert 12hr to 24hr for input
+    const t = timeMatch[1].trim();
+    const tp = t.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (tp) {
+      let h = parseInt(tp[1]);
+      const m = tp[2];
+      const ampm = tp[3].toUpperCase();
+      if (ampm === 'PM' && h < 12) h += 12;
+      if (ampm === 'AM' && h === 12) h = 0;
+      timeVal = String(h).padStart(2, '0') + ':' + m;
+    }
   }
+
+  document.getElementById('eventDetailTitle').textContent = titleText;
+  document.getElementById('eventDetailDate').textContent = dateStr;
+  document.getElementById('eventEditTitle').value = titleText;
+  document.getElementById('eventEditTime').value = timeVal;
+  document.getElementById('eventEditColor').value = ev.c || 'blue';
+  document.getElementById('eventEditNotes').value = ev.n || '';
+
+  document.getElementById('eventDetailModal').classList.add('visible');
 }
 
-function changeEventColor(color) {
-  hideContext();
+function closeEventDetail() {
+  document.getElementById('eventDetailModal').classList.remove('visible');
+  editingEventKey = null;
+  editingEventIdx = null;
+}
+
+function saveEventDetail() {
   if (!editingEventKey || editingEventIdx === null) return;
+  const title = document.getElementById('eventEditTitle').value.trim();
+  if (!title) return;
+
+  const timeVal = document.getElementById('eventEditTime').value;
+  const color = document.getElementById('eventEditColor').value;
+  const notes = document.getElementById('eventEditNotes').value.trim();
+
+  const timeDisplay = to12hr(timeVal);
+  const fullText = timeDisplay ? title + ' ' + timeDisplay : title;
+
+  events[editingEventKey][editingEventIdx].t = fullText;
   events[editingEventKey][editingEventIdx].c = color;
+  events[editingEventKey][editingEventIdx].n = notes;
   save('events', events);
-  renderMiniMonth(); renderFullCal();
+
+  renderMiniMonth(); renderThisWeek(); renderFullCal();
+  closeEventDetail();
+  showToast('Event updated', fullText);
 }
 
-function deleteCalEvent() {
-  hideContext();
+function deleteEventFromDetail() {
   if (!editingEventKey || editingEventIdx === null) return;
   events[editingEventKey].splice(editingEventIdx, 1);
   if (events[editingEventKey].length === 0) delete events[editingEventKey];
   save('events', events);
   renderMiniMonth(); renderThisWeek(); updateDateLine(); renderFullCal();
+  closeEventDetail();
   showToast('Event deleted', '');
 }
 
@@ -1247,7 +1278,7 @@ function hideContext() {
 
 // ── ESCAPE KEY ──
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeQuickAdd(); closeTimer(); hideContext(); closeFab(); closeColorBlockModal(); closeChat(); }
+  if (e.key === 'Escape') { closeQuickAdd(); closeTimer(); hideContext(); closeFab(); closeColorBlockModal(); closeChat(); closeEventDetail(); }
 });
 
 // ── DAILY ENCOURAGEMENT ──

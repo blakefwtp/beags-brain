@@ -1430,6 +1430,10 @@
     text-overflow: ellipsis;
     font-weight: 500;
     flex-shrink: 0;
+    min-height: 22px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
     transition: font-size 0.12s ease, padding 0.12s ease;
   }
 
@@ -3238,6 +3242,44 @@
       <button class="modal-btn secondary" onclick="closeColorBlockModal()">Cancel</button>
       <button class="modal-btn secondary" onclick="removeColorBlock()" style="color:var(--danger);">Remove</button>
       <button class="modal-btn primary" onclick="applyColorBlock()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ EVENT DETAIL MODAL ═══ -->
+<div class="modal-overlay" id="eventDetailModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3 id="eventDetailTitle" style="margin-bottom:4px;">Event</h3>
+    <div id="eventDetailDate" style="font-size:13px;color:var(--text-light);margin-bottom:16px;"></div>
+
+    <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-light);display:block;margin-bottom:6px;">Title</label>
+    <input class="modal-input" id="eventEditTitle" type="text" placeholder="Event name">
+
+    <div class="event-form-row" style="margin-top:10px;">
+      <div style="flex:1;">
+        <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-light);display:block;margin-bottom:6px;">Time</label>
+        <input type="time" id="eventEditTime" style="width:100%;padding:10px 12px;border:1.5px solid var(--warm-gray);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;">
+      </div>
+      <div style="flex:1;">
+        <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-light);display:block;margin-bottom:6px;">Color</label>
+        <select id="eventEditColor" style="width:100%;padding:10px 12px;border:1.5px solid var(--warm-gray);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;background:white;">
+          <option value="pink">🩷 Pink</option>
+          <option value="green">💚 Green</option>
+          <option value="blue">💙 Blue</option>
+          <option value="yellow">💛 Yellow</option>
+          <option value="lavender">💜 Lavender</option>
+        </select>
+      </div>
+    </div>
+
+    <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-light);display:block;margin-top:14px;margin-bottom:6px;">Notes</label>
+    <textarea class="modal-input" id="eventEditNotes" placeholder="Add notes, details, links..." style="min-height:80px;resize:vertical;line-height:1.5;"></textarea>
+
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="modal-btn secondary" onclick="closeEventDetail()">Cancel</button>
+      <button class="modal-btn secondary" onclick="deleteEventFromDetail()" style="color:var(--danger);">Delete</button>
+      <button class="modal-btn primary" onclick="saveEventDetail()">Save</button>
     </div>
   </div>
 </div>
