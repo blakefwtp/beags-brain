@@ -15,7 +15,7 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const SUPA_HEADERS = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' };
 
 // Keys to sync to cloud (skip chatHistory — session-only, skip husbandSub — device-specific)
-const SYNC_KEYS = ['events','todos','groceries','ideas','colorBlocks','reminders','tanks','tankHistory','nextId','nextBlockId'];
+const SYNC_KEYS = ['events','todos','groceries','ideas','colorBlocks','reminders','tanks','tankHistory','nextId','nextBlockId','husbandSub'];
 
 // Debounced write queue — batches rapid saves into one request
 let _syncQueue = {};
@@ -1400,7 +1400,7 @@ async function sendNudge(btn) {
   }
 }
 
-// ── PUSH NOTIFICATION PAIRING ──
+// ── PUSH NOTIFICATION SETUP ──
 function renderNotifSetup() {
   const container = document.getElementById('notifSetupContent');
   if (!container) return;
@@ -1409,17 +1409,63 @@ function renderNotifSetup() {
   if (sub) {
     container.innerHTML =
       '<h4>Push Notifications</h4>' +
-      '<div class="paired-status">&#10003; Connected to husband\'s phone</div>' +
-      '<p>When you send a nudge, he\'ll get a real push notification.</p>' +
-      '<button class="setup-btn outline" onclick="openPairModal()">Update Code</button>' +
-      '<button class="setup-btn danger" onclick="disconnectHusband()">Disconnect</button>';
+      '<div class="paired-status">&#10003; Connected — nudges will send push notifications</div>' +
+      '<button class="setup-btn danger" onclick="disconnectHusband()" style="margin-top:8px;">Disconnect</button>';
   } else {
-    container.innerHTML =
-      '<h4>Push Notifications</h4>' +
-      '<p>Connect your husband\'s phone so nudges send real push notifications.</p>' +
-      '<button class="setup-btn" onclick="copyPairLink()">Copy Invite Link</button>' +
-      '<button class="setup-btn outline" onclick="openPairModal()">Enter Code</button>';
+    // Check if this device can receive push notifications
+    const canPush = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
+
+    if (canPush) {
+      container.innerHTML =
+        '<h4>Push Notifications</h4>' +
+        '<p>Enable notifications on this phone so your wife\'s nudges come through as push notifications.</p>' +
+        '<button class="setup-btn" onclick="enablePushOnThisDevice()">Enable Notifications on This Phone</button>' +
+        '<div style="margin-top:10px;font-size:12px;color:var(--text-light);">Or if setting up from another device:</div>' +
+        '<button class="setup-btn outline" style="margin-top:4px;" onclick="copyPairLink()">Copy Invite Link</button>' +
+        '<button class="setup-btn outline" onclick="openPairModal()">Enter Code</button>';
+    } else {
+      container.innerHTML =
+        '<h4>Push Notifications</h4>' +
+        '<p>Send your husband this link so he can enable notifications on his phone.</p>' +
+        '<button class="setup-btn" onclick="copyPairLink()">Copy Invite Link</button>' +
+        '<button class="setup-btn outline" onclick="openPairModal()">Enter Code</button>';
+    }
   }
+}
+
+// Allow husband to enable push directly from the main app
+async function enablePushOnThisDevice() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      showToast('Permission denied', 'Allow notifications in your phone settings.');
+      return;
+    }
+
+    const subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array('BLSKCG8p86piYcjJtqt56f6j1aHqa2xGVHYeqDO0eceWa6DOuM-hMYEoQnr68HoA-WpAv_P0ovP7FCTSdmUsrpg')
+    });
+
+    // Save the subscription — syncs to cloud so wife's device picks it up
+    S.set('husbandSub', subscription.toJSON());
+    save('husbandSub', subscription.toJSON());
+    renderNotifSetup();
+    showToast('Notifications enabled!', 'Nudges will now come to this phone.');
+  } catch (err) {
+    console.error('Push setup error:', err);
+    showToast('Setup failed', err.message);
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
 }
 
 function copyPairLink() {
