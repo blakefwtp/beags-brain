@@ -2,14 +2,67 @@
 // BEAG'S BRAIN — Main Application Script
 // ══════════════════════════════════════════════
 
-// ── STORAGE ──
+// ── LOCAL STORAGE ──
 const S = {
   get(k, fb) { try { const r = localStorage.getItem('bb_'+k); return r ? JSON.parse(r) : fb; } catch(e) { return fb; } },
   set(k, v) { try { localStorage.setItem('bb_'+k, JSON.stringify(v)); } catch(e) {} },
   del(k) { try { localStorage.removeItem('bb_'+k); } catch(e) {} }
 };
 
-// ── DATA STORES (all localStorage-backed) ──
+// ── CLOUD SYNC (Supabase) ──
+const SUPA_URL = 'https://tienyxdafspakjjuhufb.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpZW55eGRhZnNwYWtqanVodWZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMzAyMzIsImV4cCI6MjA4OTgwNjIzMn0.soYFcvGFJj4bXeTXm31qq3tLb52xnNIAy1dawaCH7mM';
+const SUPA_HEADERS = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' };
+
+// Keys to sync to cloud (skip chatHistory — session-only)
+const SYNC_KEYS = ['events','todos','groceries','ideas','colorBlocks','reminders','tanks','tankHistory','nextId'];
+
+// Push a single key to Supabase (non-blocking)
+function syncToCloud(key, value) {
+  fetch(SUPA_URL + '/rest/v1/app_data', {
+    method: 'POST',
+    headers: { ...SUPA_HEADERS, 'Prefer': 'resolution=merge-duplicates' },
+    body: JSON.stringify({ key: key, value: value })
+  }).catch(() => {}); // offline — ignore
+}
+
+// Pull all data from Supabase and merge
+async function syncFromCloud() {
+  try {
+    const resp = await fetch(SUPA_URL + '/rest/v1/app_data?select=key,value,updated_at', { headers: SUPA_HEADERS });
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    let changed = false;
+    rows.forEach(row => {
+      if (!SYNC_KEYS.includes(row.key)) return;
+      const localRaw = localStorage.getItem('bb_' + row.key);
+      const cloudStr = JSON.stringify(row.value);
+      if (localRaw !== cloudStr) {
+        localStorage.setItem('bb_' + row.key, cloudStr);
+        changed = true;
+      }
+    });
+    if (changed) reloadAppData();
+  } catch(e) { /* offline */ }
+}
+
+function reloadAppData() {
+  events = S.get('events', {});
+  todos = S.get('todos', []);
+  groceries = S.get('groceries', []);
+  ideas = S.get('ideas', []);
+  colorBlocks = S.get('colorBlocks', []);
+  reminders = S.get('reminders', []);
+  nextId = S.get('nextId', 1);
+  tankValues = S.get('tanks', { touch: 50, time: 50, help: 50, emotional: 50, _updated: null });
+  tankHistory = S.get('tankHistory', []);
+  // Re-render everything
+  renderMiniMonth(); renderThisWeek(); renderTodos(); renderGsd();
+  renderGroceries(); renderIdeas(); renderReminders();
+  initTanks(); updatePulse(); updateDateLine();
+}
+
+// ── DATA STORES (localStorage + cloud backed) ──
 let events = S.get('events', {});
 let todos = S.get('todos', []);        // { id, text, done, doneAt, type:'todo'|'gsd', sub? }
 let groceries = S.get('groceries', []); // { id, text, cat, done, doneAt }
@@ -20,7 +73,8 @@ let reminders = S.get('reminders', []); // { id, title, sub, day, minutes }
 let tankValues = S.get('tanks', { touch: 50, time: 50, help: 50, emotional: 50, _updated: null });
 let tankHistory = S.get('tankHistory', []); // { date: 'YYYY-MM-DD', touch, time, help, emotional }
 
-function save(key, val) { S.set(key, val); }
+// Save to localStorage AND push to cloud
+function save(key, val) { S.set(key, val); syncToCloud(key, val); }
 function getId() { const id = nextId++; save('nextId', nextId); return id; }
 
 // ── HELPERS ──
@@ -1882,3 +1936,7 @@ updatePulse();
 renderNotifSetup();
 recordDailyTankSnapshot();
 restoreChatHistory();
+
+// ── CLOUD SYNC ──
+syncFromCloud(); // Pull latest on load
+setInterval(syncFromCloud, 30000); // Sync every 30 seconds
