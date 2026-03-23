@@ -1424,11 +1424,25 @@ function renderNotifSetup() {
 
 function copyPairLink() {
   const link = window.location.origin + '/pair.html';
-  navigator.clipboard.writeText(link).then(() => {
-    showToast('Link copied!', 'Text this to your husband. He opens it and taps Allow.');
-  }).catch(() => {
-    showToast('Pair link', link);
-  });
+  // iOS Safari clipboard fallback
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand('copy'); showToast('Link copied!', 'Text this to your husband'); }
+    catch(e) { prompt('Copy this link and text it to your husband:', text); }
+    document.body.removeChild(ta);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(link).then(() => {
+      showToast('Link copied!', 'Text this to your husband. He opens it and taps Allow.');
+    }).catch(() => fallbackCopy(link));
+  } else {
+    fallbackCopy(link);
+  }
 }
 
 function openPairModal() {
