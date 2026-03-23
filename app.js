@@ -1003,7 +1003,7 @@ document.getElementById('quickAddSubmit').onclick = function() {
   const val = document.getElementById('quickAddInput').value.trim();
   if (!val) { closeQuickAdd(); return; }
 
-  switch(currentQuickAddType) {
+  try { switch(currentQuickAddType) {
     case 'event': {
       const dateVal = document.getElementById('eventDate').value;
       if (!dateVal) { closeQuickAdd(); return; }
@@ -1070,7 +1070,7 @@ document.getElementById('quickAddSubmit').onclick = function() {
       if (rf) rf.style.display = 'none';
       break;
     }
-  }
+  } } catch(e) { console.error('Quick add error:', e); }
   closeQuickAdd();
 };
 
