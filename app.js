@@ -301,7 +301,21 @@ function renderFullCal() {
 
     if (!isOther) {
       const key = fullCalYear + '-' + (fullCalMonth + 1) + '-' + dayNum;
-      applyBlockToCell(cell, key);
+      const block = applyBlockToCell(cell, key);
+
+      // Show color block as a tappable event-like chip
+      if (block) {
+        const blockDiv = document.createElement('div');
+        blockDiv.className = 'fullcal-ev';
+        blockDiv.style.cssText = 'background:' + block.color + '40;color:' + block.color + ';font-weight:600;border:1px solid ' + block.color + '80;';
+        blockDiv.textContent = block.label || 'Color block';
+        blockDiv.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openBlockEditor(block.id, key);
+        });
+        eventsDiv.appendChild(blockDiv);
+      }
+
       const evts = events[key];
       if (evts) {
         evts.forEach((ev, idx) => {
@@ -537,15 +551,8 @@ function applyBlockToCell(cell, dateStr) {
     fill.className = 'day-block-fill';
     fill.style.background = block.color;
     cell.insertBefore(fill, cell.firstChild);
-    if (block.label) {
-      const lbl = document.createElement('div');
-      lbl.className = 'block-label';
-      lbl.textContent = block.label;
-      const r = parseInt(block.color.slice(1,3),16), g = parseInt(block.color.slice(3,5),16), b2 = parseInt(block.color.slice(5,7),16);
-      lbl.style.color = (r*0.299+g*0.587+b2*0.114) > 170 ? '#555' : '#fff';
-      cell.appendChild(lbl);
-    }
   }
+  return block || null;
 }
 
 // ── THIS WEEK (auto-populated from events) ──
@@ -1117,6 +1124,52 @@ function updateTimerDisplay() {
 // ── CALENDAR EVENT EDITOR ──
 let editingEventKey = null;
 let editingEventIdx = null;
+
+function openBlockEditor(blockId, dateKey) {
+  const block = colorBlocks.find(b => b.id === blockId);
+  if (!block) return;
+
+  const menu = document.getElementById('contextMenu');
+  const overlay = document.getElementById('contextOverlay');
+
+  const dateRange = block.startDate + ' to ' + block.endDate;
+  menu.innerHTML =
+    '<div style="padding:14px 18px 8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-light);">' +
+    esc(block.label || 'Color Block') + '<div style="font-weight:400;margin-top:2px;text-transform:none;letter-spacing:0;">' + dateRange + '</div></div>' +
+    '<div class="context-menu-item" onclick="editBlockFromMenu(' + blockId + ')"><span class="cm-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span> Edit Block</div>' +
+    '<div class="context-menu-item" style="color:var(--danger);" onclick="deleteBlockFromMenu(' + blockId + ')"><span class="cm-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></span> Remove Block</div>';
+
+  overlay.classList.add('visible');
+  menu.style.left = '50%';
+  menu.style.top = '50%';
+  menu.style.transform = 'translate(-50%, -50%)';
+  requestAnimationFrame(() => menu.classList.add('visible'));
+}
+
+function editBlockFromMenu(blockId) {
+  hideContext();
+  const block = colorBlocks.find(b => b.id === blockId);
+  if (!block) return;
+  // Open color block modal pre-filled with this block's data
+  colorBlockTargetDate = block.startDate;
+  const sp = block.startDate.split('-'), ep = block.endDate.split('-');
+  document.getElementById('blockStartDate').value = sp[0] + '-' + sp[1].padStart(2,'0') + '-' + sp[2].padStart(2,'0');
+  document.getElementById('blockEndDate').value = ep[0] + '-' + ep[1].padStart(2,'0') + '-' + ep[2].padStart(2,'0');
+  document.getElementById('blockLabel').value = block.label || '';
+  selectedBlockColor = block.color;
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.toggle('selected', s.dataset.color === block.color));
+  document.querySelectorAll('.block-preset').forEach(b => b.classList.remove('selected'));
+  document.getElementById('colorBlockModal').classList.add('visible');
+}
+
+function deleteBlockFromMenu(blockId) {
+  hideContext();
+  colorBlocks = colorBlocks.filter(b => b.id !== blockId);
+  save('colorBlocks', colorBlocks);
+  renderMiniMonth();
+  renderFullCal();
+  showToast('Color block removed', '');
+}
 
 function openEventEditor(dateKey, eventIdx) {
   editingEventKey = dateKey;
