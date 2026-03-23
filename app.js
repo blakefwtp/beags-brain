@@ -15,7 +15,7 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const SUPA_HEADERS = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' };
 
 // Keys to sync to cloud (skip chatHistory — session-only, skip husbandSub — device-specific)
-const SYNC_KEYS = ['events','todos','groceries','ideas','colorBlocks','reminders','tanks','tankHistory','nextId','nextBlockId','husbandSub'];
+const SYNC_KEYS = ['events','todos','groceries','ideas','colorBlocks','reminders','tanks','tankHistory','nextId','nextBlockId','husbandPhone'];
 
 // Debounced write queue — batches rapid saves into one request
 let _syncQueue = {};
@@ -1345,127 +1345,65 @@ function updateSuggestions() {
   ).join('');
 }
 
-async function sendNudge(btn) {
-  const sub = S.get('husbandSub', null);
-  if (!sub) {
-    showToast('Not connected', 'Set up notifications first so he can receive nudges.');
+function sendNudge(btn) {
+  const phone = S.get('husbandPhone', null);
+  if (!phone) {
+    showToast('No phone number', 'Add his number in the Us tab first.');
     return;
   }
 
-  // Get the nudge text from the sibling .sug-text
+  // Get the nudge text
   const card = btn.closest('.suggestion-card');
   const textEl = card ? card.querySelector('.sug-text') : null;
-  const nudgeText = textEl ? textEl.textContent : 'Your wife sent you a nudge!';
+  const nudgeText = textEl ? textEl.textContent : 'Hey, your wife could use some help.';
 
-  // Find which tank category this is from
+  // Find which tank is lowest
   let lowestType = 'help', lowestVal = 100;
   ['touch','time','help','emotional'].forEach(type => {
     if (tankValues[type] < lowestVal) { lowestVal = tankValues[type]; lowestType = type; }
   });
   const title = tankConfig[lowestType].lowNotif.title;
 
-  btn.disabled = true;
-  btn.textContent = 'Sending...';
+  // Build message and open iMessage
+  const message = title + '\n\n' + nudgeText + '\n\n— Beag\'s Brain';
+  const smsUrl = 'sms:' + encodeURIComponent(phone) + '&body=' + encodeURIComponent(message);
+  window.location.href = smsUrl;
 
-  try {
-    const resp = await fetch('/api/nudge', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription: sub, title: title, body: nudgeText })
-    });
-
-    if (resp.ok) {
-      btn.textContent = 'Sent! ✓';
-      btn.style.background = 'var(--success)';
-      setTimeout(() => { btn.textContent = 'Send hint'; btn.style.background = ''; btn.disabled = false; }, 2000);
-      showToast('Nudge sent!', 'He just got a push notification');
-    } else {
-      const data = await resp.json().catch(() => ({}));
-      if (data.code === 'EXPIRED') {
-        S.del('husbandSub');
-        renderNotifSetup();
-        showToast('Connection expired', 'Have him open the pairing page again and reconnect.');
-      } else {
-        throw new Error(data.error || 'Failed');
-      }
-      btn.textContent = 'Send hint';
-      btn.disabled = false;
-    }
-  } catch (err) {
-    console.error('Nudge error:', err);
-    btn.textContent = 'Failed';
-    btn.style.background = '#E8B0B0';
-    setTimeout(() => { btn.textContent = 'Send hint'; btn.style.background = ''; btn.disabled = false; }, 2000);
-    showToast('Nudge failed', 'Check your connection and try again.');
-  }
+  btn.textContent = 'Sent! ✓';
+  btn.style.background = 'var(--success)';
+  setTimeout(() => { btn.textContent = 'Send hint'; btn.style.background = ''; }, 2000);
 }
 
-// ── PUSH NOTIFICATION SETUP ──
+// ── HUSBAND PHONE NUMBER SETUP ──
 function renderNotifSetup() {
   const container = document.getElementById('notifSetupContent');
   if (!container) return;
-  const sub = S.get('husbandSub', null);
+  const phone = S.get('husbandPhone', null);
 
-  if (sub) {
+  if (phone) {
     container.innerHTML =
-      '<h4>Push Notifications</h4>' +
-      '<div class="paired-status">&#10003; Connected — nudges will send push notifications</div>' +
-      '<button class="setup-btn danger" onclick="disconnectHusband()" style="margin-top:8px;">Disconnect</button>';
+      '<h4>Nudge via Text</h4>' +
+      '<div class="paired-status">&#10003; Connected — nudges text ' + esc(phone) + '</div>' +
+      '<button class="setup-btn outline" onclick="setupHusbandPhone()" style="margin-top:8px;">Change Number</button>' +
+      '<button class="setup-btn danger" onclick="disconnectHusband()" style="margin-top:4px;">Remove</button>';
   } else {
-    // Check if this device can receive push notifications
-    const canPush = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
-
-    if (canPush) {
-      container.innerHTML =
-        '<h4>Push Notifications</h4>' +
-        '<p>Enable notifications on this phone so your wife\'s nudges come through as push notifications.</p>' +
-        '<button class="setup-btn" onclick="enablePushOnThisDevice()">Enable Notifications on This Phone</button>' +
-        '<div style="margin-top:10px;font-size:12px;color:var(--text-light);">Or if setting up from another device:</div>' +
-        '<button class="setup-btn outline" style="margin-top:4px;" onclick="copyPairLink()">Copy Invite Link</button>' +
-        '<button class="setup-btn outline" onclick="openPairModal()">Enter Code</button>';
-    } else {
-      container.innerHTML =
-        '<h4>Push Notifications</h4>' +
-        '<p>Send your husband this link so he can enable notifications on his phone.</p>' +
-        '<button class="setup-btn" onclick="copyPairLink()">Copy Invite Link</button>' +
-        '<button class="setup-btn outline" onclick="openPairModal()">Enter Code</button>';
-    }
+    container.innerHTML =
+      '<h4>Nudge via Text</h4>' +
+      '<p>Enter his phone number so nudges get sent as a text message.</p>' +
+      '<button class="setup-btn" onclick="setupHusbandPhone()">Add His Phone Number</button>';
   }
 }
 
-// Allow husband to enable push directly from the main app
-async function enablePushOnThisDevice() {
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      showToast('Permission denied', 'Allow notifications in your phone settings.');
-      return;
-    }
-
-    const subscription = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array('BLSKCG8p86piYcjJtqt56f6j1aHqa2xGVHYeqDO0eceWa6DOuM-hMYEoQnr68HoA-WpAv_P0ovP7FCTSdmUsrpg')
-    });
-
-    // Save the subscription — syncs to cloud so wife's device picks it up
-    S.set('husbandSub', subscription.toJSON());
-    save('husbandSub', subscription.toJSON());
+function setupHusbandPhone() {
+  const current = S.get('husbandPhone', '');
+  const phone = prompt('Enter his phone number:', current);
+  if (phone !== null && phone.trim()) {
+    const clean = phone.trim();
+    S.set('husbandPhone', clean);
+    save('husbandPhone', clean);
     renderNotifSetup();
-    showToast('Notifications enabled!', 'Nudges will now come to this phone.');
-  } catch (err) {
-    console.error('Push setup error:', err);
-    showToast('Setup failed', err.message);
+    showToast('Phone saved!', 'Nudges will text ' + clean);
   }
-}
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-  return outputArray;
 }
 
 function copyPairLink() {
@@ -1527,9 +1465,10 @@ function savePairCode() {
 }
 
 function disconnectHusband() {
+  S.del('husbandPhone');
   S.del('husbandSub');
   renderNotifSetup();
-  showToast('Disconnected', 'Push notifications disabled. Reconnect anytime.');
+  showToast('Removed', 'Phone number cleared.');
 }
 
 function initTanks() {
