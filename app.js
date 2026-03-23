@@ -1376,6 +1376,64 @@ function updateTank(type, value) {
 
   updateNotifPreview();
   updateSuggestions();
+  checkLowTankAlert(type, v);
+}
+
+// ── LOW TANK ALERT (soft nudge banner) ──
+const LOW_THRESHOLD = 25;
+let lowTankAlertedToday = S.get('lowTankAlerted', {});
+
+function checkLowTankAlert(type, value) {
+  const today = NOW.getFullYear() + '-' + (NOW.getMonth()+1) + '-' + NOW.getDate();
+
+  // Reset alerts if it's a new day
+  if (lowTankAlertedToday._date !== today) {
+    lowTankAlertedToday = { _date: today };
+    S.set('lowTankAlerted', lowTankAlertedToday);
+  }
+
+  const banner = document.getElementById('lowTankBanner');
+  if (!banner) return;
+
+  if (value <= LOW_THRESHOLD && !lowTankAlertedToday[type]) {
+    // Show the banner
+    const config = tankConfig[type];
+    banner.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;">' +
+      '<span style="font-size:20px;">' + config.emoji + '</span>' +
+      '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">Your ' + config.name + ' tank is running low</div>' +
+      '<div style="font-size:12px;color:var(--text-light);margin-top:2px;">Want to send him a nudge?</div></div>' +
+      '<button onclick="sendLowTankNudge(\'' + type + '\')" style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:20px;font-family:DM Sans,sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Send Nudge</button>' +
+      '<button onclick="dismissLowTankBanner(\'' + type + '\')" style="background:none;border:none;font-size:18px;color:var(--text-light);cursor:pointer;padding:4px 8px;">✕</button>' +
+      '</div>';
+    banner.style.display = 'block';
+  } else if (value > LOW_THRESHOLD) {
+    // If tank goes back above threshold, hide banner for this tank
+    const currentBanner = banner.innerHTML;
+    if (currentBanner.includes(tankConfig[type].name)) {
+      banner.style.display = 'none';
+    }
+  }
+}
+
+function sendLowTankNudge(type) {
+  const config = tankConfig[type];
+  const phone = S.get('husbandPhone', null);
+  if (!phone) {
+    showToast('No phone number', 'Add his number first.');
+    return;
+  }
+  const message = config.lowNotif.title + '\n\n' + config.lowNotif.body + '\n\n— Beag\'s Brain';
+  window.location.href = 'sms:' + encodeURIComponent(phone) + '&body=' + encodeURIComponent(message);
+  dismissLowTankBanner(type);
+}
+
+function dismissLowTankBanner(type) {
+  const today = NOW.getFullYear() + '-' + (NOW.getMonth()+1) + '-' + NOW.getDate();
+  lowTankAlertedToday[type] = true;
+  lowTankAlertedToday._date = today;
+  S.set('lowTankAlerted', lowTankAlertedToday);
+  document.getElementById('lowTankBanner').style.display = 'none';
 }
 
 function updateNotifPreview() {

@@ -2412,7 +2412,8 @@
 
   /* ── CALENDAR PINCH ZOOM ── */
   .fullcal-wrapper {
-    touch-action: pan-y;
+    touch-action: pan-x pan-y;
+    overflow: auto;
   }
 
   /* ══════════════════════════════════════════════ */
@@ -2941,6 +2942,9 @@
       <h2>Us</h2>
       <div class="intro-sub">Check in with yourself. Slide each tank to where you actually are — not where you think you should be.</div>
     </div>
+
+    <!-- Low tank nudge banner -->
+    <div id="lowTankBanner" style="display:none;margin:8px 16px;padding:14px 16px;background:var(--white);border-radius:var(--radius);border:1.5px solid var(--accent);box-shadow:var(--shadow-md);"></div>
 
     <!-- WEEKLY PULSE (moved to top) -->
     <div class="pulse-card">
