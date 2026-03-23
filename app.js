@@ -547,15 +547,26 @@ const COMMON_ITEMS = {
   other: ['Paper towels','Toilet paper','Trash bags','Dish soap','Laundry detergent','Ziplock bags','Aluminum foil','Baby wipes','Diapers','Dog food']
 };
 
-function renderGroceryQuickAdd(cat, containerId) {
-  const existing = groceries.filter(g => g.cat === cat && !g.done).map(g => g.text.replace(/\s*\(.*\)$/, '').toLowerCase());
+function renderGroceryQuickAdd(cat) {
+  const existing = groceries.filter(g => g.cat === cat).map(g => g.text.replace(/\s*\(.*\)$/, '').toLowerCase());
   const suggestions = COMMON_ITEMS[cat].filter(item => !existing.includes(item.toLowerCase()));
   if (suggestions.length === 0) return '';
-  return '<div class="quick-add-chips" id="chips_' + cat + '">' +
-    suggestions.slice(0, 8).map(item =>
+  return '<div style="border-top:1px solid var(--cream);margin-top:4px;padding-top:4px;">' +
+    '<button class="completed-toggle" onclick="toggleQuickAdd(\'' + cat + '\')" style="padding:4px 0;">' +
+    '<span class="toggle-arrow" id="qaArrow_' + cat + '">▶</span> Quick add</button>' +
+    '<div class="completed-section" id="qaSection_' + cat + '">' +
+    '<div class="quick-add-chips">' +
+    suggestions.map(item =>
       '<button class="quick-chip" onclick="quickAddGrocery(\'' + esc(item).replace(/'/g, "\\'") + '\', \'' + cat + '\', this)">+ ' + esc(item) + '</button>'
     ).join('') +
-    '</div>';
+    '</div></div></div>';
+}
+
+function toggleQuickAdd(cat) {
+  const section = document.getElementById('qaSection_' + cat);
+  const arrow = document.getElementById('qaArrow_' + cat);
+  if (section) section.classList.toggle('open');
+  if (arrow) arrow.classList.toggle('open');
 }
 
 function quickAddGrocery(name, cat, btn) {
@@ -589,50 +600,64 @@ function confirmGroceryAdd(name, cat, btn) {
 }
 
 // ── GROCERY RENDERING ──
+function renderGroceryItem(g) {
+  const checked = g.done ? ' checked' : '';
+  const strikeStyle = g.done ? 'text-decoration:line-through;color:var(--text-light);' : '';
+  return '<div class="check-row' + (g.done ? ' done' : '') + '" data-id="' + g.id + '">' +
+    '<input type="checkbox"' + checked + ' onchange="toggleGrocery(' + g.id + ')">' +
+    '<label style="' + strikeStyle + 'flex:1;">' + esc(g.text) + '</label>' +
+    '<button style="background:none;border:none;font-size:14px;cursor:pointer;padding:4px 8px;color:var(--text-light);" onclick="deleteGrocery(' + g.id + ')">✕</button>' +
+    '</div>';
+}
+
 function renderGroceries() {
   const catMap = { dairy: 'groceryDairy', meat: 'groceryMeat', produce: 'groceryProduce', pantry: 'groceryPantry', other: 'groceryOther' };
   const countMap = { dairy: 'dairyCount', meat: 'meatCount', produce: 'produceCount', pantry: 'pantryCount', other: 'otherCount' };
 
   Object.keys(catMap).forEach(cat => {
     const el = document.getElementById(catMap[cat]);
-    const items = groceries.filter(g => g.cat === cat && !g.done);
-    document.getElementById(countMap[cat]).textContent = items.length + ' item' + (items.length !== 1 ? 's' : '');
-    if (items.length === 0) {
-      el.innerHTML = renderGroceryQuickAdd(cat);
-    } else {
-      el.innerHTML = items.map(g =>
-        '<div class="check-row" data-id="' + g.id + '"><input type="checkbox" onchange="checkGrocery(' + g.id + ')"><label>' + esc(g.text) + '</label></div>'
-      ).join('') + renderGroceryQuickAdd(cat);
-    }
+    const allItems = groceries.filter(g => g.cat === cat);
+    const activeItems = allItems.filter(g => !g.done);
+    document.getElementById(countMap[cat]).textContent = activeItems.length + ' item' + (activeItems.length !== 1 ? 's' : '');
+
+    // Show all items (active first, then checked) + quick add
+    const active = allItems.filter(g => !g.done);
+    const checked = allItems.filter(g => g.done);
+    el.innerHTML = active.map(renderGroceryItem).join('') +
+      checked.map(renderGroceryItem).join('') +
+      renderGroceryQuickAdd(cat);
   });
 
   const total = groceries.filter(g => !g.done).length;
-  document.getElementById('grocerySubtitle').textContent = total + ' item' + (total !== 1 ? 's' : '');
+  const totalAll = groceries.length;
+  document.getElementById('grocerySubtitle').textContent = total + ' item' + (total !== 1 ? 's' : '') + (total !== totalAll ? ' (' + (totalAll - total) + ' checked off)' : '');
 
   // Show/hide H-E-B order bar
   const hebBar = document.getElementById('hebOrderBar');
   if (hebBar) hebBar.style.display = total > 0 ? 'flex' : 'none';
 
-  // Completed
-  const completed = groceries.filter(g => g.done && g.doneAt && (Date.now() - g.doneAt) < ARCHIVE_DAYS * 86400000);
+  // Hide the old completed section (we show them inline now)
   const toggle = document.getElementById('groceryCompletedToggle');
+  if (toggle) toggle.style.display = 'none';
   const section = document.getElementById('groceryCompleted');
-  document.getElementById('groceryCompletedCount').textContent = completed.length;
-  toggle.style.display = completed.length > 0 ? 'flex' : 'none';
-  section.innerHTML = completed.map(g =>
-    '<div class="check-row done"><input type="checkbox" checked onchange="uncheckGrocery(' + g.id + ')"><label style="text-decoration:line-through;color:var(--text-light);">' + esc(g.text) + '</label></div>'
-  ).join('');
+  if (section) section.innerHTML = '';
 }
 
-function checkGrocery(id) {
+function toggleGrocery(id) {
   const g = groceries.find(x => x.id === id);
-  if (g) { g.done = true; g.doneAt = Date.now(); save('groceries', groceries); }
+  if (g) {
+    g.done = !g.done;
+    g.doneAt = g.done ? Date.now() : null;
+    save('groceries', groceries);
+  }
   renderGroceries();
 }
-function uncheckGrocery(id) {
-  const g = groceries.find(x => x.id === id);
-  if (g) { g.done = false; g.doneAt = null; save('groceries', groceries); }
+
+function deleteGrocery(id) {
+  groceries = groceries.filter(g => g.id !== id);
+  save('groceries', groceries);
   renderGroceries();
+}
 }
 
 // ── H-E-B / INSTACART INTEGRATION ──
