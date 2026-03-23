@@ -57,8 +57,8 @@ module.exports = async (req, res) => {
   } catch (err) {
     console.error('Push failed:', err.message, err.statusCode, err.body);
 
-    if (err.statusCode === 410 || err.statusCode === 404) {
-      return res.status(410).json({ error: 'Subscription expired', code: 'EXPIRED' });
+    if (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 403) {
+      return res.status(410).json({ error: 'Subscription expired or invalid. Have him re-enable notifications from the app.', code: 'EXPIRED' });
     }
 
     return res.status(500).json({
