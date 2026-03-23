@@ -147,10 +147,29 @@
 
 <div class="pair-card" id="mainCard">
   <div class="pair-logo">Beag's Brain</div>
-  <div class="pair-sub">Your wife wants to send you nudges when she needs you.<br>Allow notifications so you never miss one.</div>
-  <button class="pair-btn" id="allowBtn" onclick="startPairing()">Allow Notifications</button>
-  <div class="pair-status" id="status"></div>
-  <div class="error-msg" id="errorMsg"></div>
+
+  <!-- STEP 1: Add to Home Screen (iOS Safari only) -->
+  <div id="step1" style="display:none;">
+    <div class="pair-sub" style="margin-bottom:16px;">
+      <strong>Step 1 of 2:</strong> Add this page to your Home Screen first. Push notifications only work from the Home Screen on iPhone.
+    </div>
+    <div style="background:var(--accent-light);border-radius:12px;padding:16px;font-size:14px;line-height:1.6;margin-bottom:16px;">
+      <div style="margin-bottom:8px;"><strong>1.</strong> Tap the <strong>Share button</strong> <span style="font-size:18px;">⬆</span> at the bottom of Safari</div>
+      <div style="margin-bottom:8px;"><strong>2.</strong> Scroll down and tap <strong>"Add to Home Screen"</strong></div>
+      <div><strong>3.</strong> Tap <strong>"Add"</strong> in the top right</div>
+    </div>
+    <div style="font-size:13px;color:var(--text-light);text-align:center;">
+      Then open it from your Home Screen and come back here.
+    </div>
+  </div>
+
+  <!-- STEP 2: Allow Notifications (shown when running as PWA) -->
+  <div id="step2">
+    <div class="pair-sub">Your wife wants to send you nudges when she needs you.<br>Allow notifications so you never miss one.</div>
+    <button class="pair-btn" id="allowBtn" onclick="startPairing()">Allow Notifications</button>
+    <div class="pair-status" id="status"></div>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
 
   <div class="pair-code-area" id="codeArea">
     <div class="step-hint">Copy this code and text it to your wife. She'll paste it in her app to connect.</div>
@@ -162,6 +181,17 @@
 <script>
   // VAPID public key — must match server
   const VAPID_PUBLIC_KEY = 'BLSKCG8p86piYcjJtqt56f6j1aHqa2xGVHYeqDO0eceWa6DOuM-hMYEoQnr68HoA-WpAv_P0ovP7FCTSdmUsrpg';
+
+  // Detect if running as installed PWA (Home Screen) on iOS
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  const hasPush = ('serviceWorker' in navigator) && ('PushManager' in window);
+
+  // On iOS Safari (not Home Screen): show "Add to Home Screen" instructions
+  if (isIOS && !isStandalone && !hasPush) {
+    document.getElementById('step1').style.display = 'block';
+    document.getElementById('step2').style.display = 'none';
+  }
 
   function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -180,7 +210,11 @@
 
     // Check support
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      errorMsg.textContent = 'Push notifications are not supported on this browser. Try Chrome or Safari.';
+      if (isIOS) {
+        errorMsg.textContent = 'Push notifications require this page to be opened from your Home Screen. Tap the Share button below, then "Add to Home Screen", then open it from there.';
+      } else {
+        errorMsg.textContent = 'Push notifications are not supported on this browser. Try Chrome or Safari.';
+      }
       return;
     }
 
