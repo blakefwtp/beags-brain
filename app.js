@@ -625,24 +625,56 @@ function renderTodos() {
   ).join('');
 }
 
+const GSD_SECTIONS = [
+  { key: 'asap', label: 'ASAP', icon: '🔥', color: 'var(--danger)' },
+  { key: 'gsd_day', label: 'GSD Day', icon: '⚡', color: 'var(--accent)' },
+  { key: 'around_house', label: 'Around the House', icon: '🏠', color: 'var(--soft-blue)' },
+  { key: 'someday', label: 'Someday', icon: '💭', color: 'var(--soft-lavender)' }
+];
+
 function renderGsd() {
   const active = todos.filter(t => t.type === 'gsd' && !t.done);
   const completed = todos.filter(t => t.type === 'gsd' && t.done && !isArchived(t));
   const body = document.getElementById('gsdBody');
 
   if (active.length === 0) {
-    body.innerHTML = '<div class="empty-state"><div class="empty-icon">⚡</div>Nothing here. Tap + to add a task.</div>';
-  } else {
-    body.innerHTML = active.map(t =>
-      '<div class="gsd-task-mobile" data-id="' + t.id + '">' +
-      '<input type="checkbox" onchange="completeTodo(' + t.id + ')">' +
-      '<div class="task-info"><div class="task-name">' + esc(t.text) + '</div>' +
-      (t.sub ? '<div class="task-sub">' + esc(t.sub) + '</div>' : '') +
-      '</div>' +
-      '<button class="go-btn-small" onclick="event.stopPropagation(); openTimer(\'' + esc(t.text).replace(/'/g, "\\'") + '\', 15)">GO</button>' +
-      '</div>'
+    body.innerHTML = GSD_SECTIONS.map(sec =>
+      '<div class="gsd-section">' +
+      '<div class="gsd-section-header" onclick="toggleGsdSection(\'' + sec.key + '\')">' +
+      '<span>' + sec.icon + ' ' + sec.label + '</span>' +
+      '<div style="display:flex;align-items:center;gap:8px;">' +
+      '<span class="gsd-section-count">0</span>' +
+      '<button class="gsd-section-add" onclick="event.stopPropagation(); openGsdAdd(\'' + sec.key + '\')">+</button>' +
+      '</div></div></div>'
     ).join('');
+    return;
   }
+
+  body.innerHTML = GSD_SECTIONS.map(sec => {
+    const sectionTasks = active.filter(t => (t.section || 'asap') === sec.key);
+    const collapsed = S.get('gsd_collapsed_' + sec.key, false);
+    return '<div class="gsd-section">' +
+      '<div class="gsd-section-header" onclick="toggleGsdSection(\'' + sec.key + '\')">' +
+      '<span>' + sec.icon + ' ' + sec.label + '</span>' +
+      '<div style="display:flex;align-items:center;gap:8px;">' +
+      '<span class="gsd-section-count">' + sectionTasks.length + '</span>' +
+      '<button class="gsd-section-add" onclick="event.stopPropagation(); openGsdAdd(\'' + sec.key + '\')">+</button>' +
+      '<span class="gsd-section-arrow" style="font-size:10px;color:var(--text-light);">' + (collapsed ? '▶' : '▼') + '</span>' +
+      '</div></div>' +
+      '<div class="gsd-section-body" style="' + (collapsed ? 'display:none;' : '') + '">' +
+      (sectionTasks.length === 0
+        ? '<div style="padding:12px 16px;font-size:13px;color:var(--text-light);text-align:center;">No tasks yet</div>'
+        : sectionTasks.map(t =>
+          '<div class="gsd-task-mobile" data-id="' + t.id + '">' +
+          '<input type="checkbox" onchange="completeTodo(' + t.id + ')">' +
+          '<div class="task-info"><div class="task-name">' + esc(t.text) + '</div>' +
+          (t.sub ? '<div class="task-sub">' + esc(t.sub) + '</div>' : '') +
+          '</div>' +
+          '<button class="go-btn-small" onclick="event.stopPropagation(); openTimer(\'' + esc(t.text).replace(/'/g, "\\'") + '\', 15)">GO</button>' +
+          '</div>'
+        ).join('')) +
+      '</div></div>';
+  }).join('');
 
   const toggle = document.getElementById('gsdCompletedToggle');
   const section = document.getElementById('gsdCompleted');
@@ -651,6 +683,23 @@ function renderGsd() {
   section.innerHTML = completed.map(t =>
     '<div class="gsd-task-mobile" style="opacity:0.5;" data-id="' + t.id + '"><input type="checkbox" checked onchange="uncompleteTodo(' + t.id + ')"><div class="task-info"><div class="task-name" style="text-decoration:line-through;">' + esc(t.text) + '</div></div><span class="est" style="background:var(--soft-green);color:#4A7A52;font-weight:600;">Done!</span></div>'
   ).join('');
+}
+
+function toggleGsdSection(key) {
+  const collapsed = S.get('gsd_collapsed_' + key, false);
+  S.set('gsd_collapsed_' + key, !collapsed);
+  renderGsd();
+}
+
+let _gsdAddSection = 'asap';
+function openGsdAdd(sectionKey) {
+  _gsdAddSection = sectionKey;
+  openQuickAdd('gsd');
+  // Pre-select section in the picker
+  setTimeout(() => {
+    const sel = document.getElementById('gsdSectionPicker');
+    if (sel) sel.value = sectionKey;
+  }, 50);
 }
 
 function completeTodo(id) {
@@ -1001,6 +1050,7 @@ function openQuickAdd(type) {
   document.getElementById('quickAddInput').value = '';
   document.getElementById('eventFields').style.display = type === 'event' ? 'block' : 'none';
   document.getElementById('groceryFields').style.display = type === 'grocery' ? 'block' : 'none';
+  document.getElementById('gsdFields').style.display = type === 'gsd' ? 'block' : 'none';
   const rf = document.getElementById('reminderFields');
   if (rf) rf.style.display = 'none';
 
@@ -1061,10 +1111,14 @@ document.getElementById('quickAddSubmit').onclick = function() {
       break;
     }
     case 'gsd': {
-      todos.push({ id: getId(), text: val, done: false, doneAt: null, type: 'gsd' });
+      const gsdSec = document.getElementById('gsdSectionPicker');
+      const section = gsdSec ? gsdSec.value : (_gsdAddSection || 'asap');
+      todos.push({ id: getId(), text: val, done: false, doneAt: null, type: 'gsd', section: section });
       save('todos', todos);
       renderGsd();
-      showToast('GSD task added!', val);
+      const secLabel = (GSD_SECTIONS.find(s => s.key === section) || {}).label || section;
+      showToast('GSD task added!', secLabel + ' — ' + val);
+      _gsdAddSection = 'asap';
       break;
     }
     case 'idea': {
@@ -1869,7 +1923,7 @@ function executeActions(actions) {
       }
 
       case 'add_gsd': {
-        const item = { id: getId(), text: p.text || 'Task', done: false, doneAt: null, type: 'gsd' };
+        const item = { id: getId(), text: p.text || 'Task', done: false, doneAt: null, type: 'gsd', section: p.section || 'asap' };
         if (p.sub) item.sub = p.sub;
         todos.push(item);
         save('todos', todos);
