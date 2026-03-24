@@ -626,10 +626,10 @@ function renderTodos() {
 }
 
 const GSD_SECTIONS = [
-  { key: 'asap', label: 'ASAP', icon: '🔥', color: 'var(--danger)' },
-  { key: 'gsd_day', label: 'GSD Day', icon: '⚡', color: 'var(--accent)' },
-  { key: 'around_house', label: 'Around the House', icon: '🏠', color: 'var(--soft-blue)' },
-  { key: 'someday', label: 'Someday', icon: '💭', color: 'var(--soft-lavender)' }
+  { key: 'asap', label: 'ASAP', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4827A" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>', color: '#D4827A' },
+  { key: 'gsd_day', label: 'GSD Day', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C8A88C" stroke-width="2.5" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>', color: '#C8A88C' },
+  { key: 'around_house', label: 'Around the House', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8BB0C8" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>', color: '#8BB0C8' },
+  { key: 'someday', label: 'Someday', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B8A0C8" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>', color: '#B8A0C8' }
 ];
 
 function renderGsd() {
