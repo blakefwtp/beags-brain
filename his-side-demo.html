@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>His Side — Beag's Brain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#1B1F23;
+  --surface:#24292E;
+  --surface-2:#2F353A;
+  --surface-3:#3A4147;
+  --amber:#D4873F;
+  --amber-dim:rgba(212,135,63,.15);
+  --amber-glow:rgba(212,135,63,.25);
+  --text:#E8E6E3;
+  --text-mid:#9DA5AD;
+  --text-dim:#6B737B;
+  --green:#6BCB77;
+  --red:#E06C75;
+  --blue:#61AFEF;
+  --radius:14px;
+  --radius-sm:10px;
+}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;
+  max-width:430px;margin:0 auto;
+  position:relative;
+}
+@media(min-width:500px){
+  body{border:1px solid var(--surface-3);border-radius:24px;height:95vh;margin-top:2.5vh;overflow:hidden;box-shadow:0 0 60px rgba(0,0,0,.5)}
+}
+
+/* Header */
+.app-header{
+  padding:16px 20px 12px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--surface-2);
+  flex-shrink:0;
+}
+.app-header h1{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:700;font-size:22px;letter-spacing:.5px;
+  color:var(--amber);text-transform:uppercase;
+}
+.app-header .subtitle{font-size:11px;color:var(--text-dim);margin-top:2px;font-weight:400;letter-spacing:.3px}
+.header-badge{
+  background:var(--amber-dim);color:var(--amber);
+  font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;
+  font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;text-transform:uppercase;
+}
+
+/* Tabs */
+.tab-bar{
+  display:flex;gap:2px;padding:8px 12px;
+  border-bottom:1px solid var(--surface-2);
+  overflow-x:auto;flex-shrink:0;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.tab-bar::-webkit-scrollbar{display:none}
+.tab-btn{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:13px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;
+  background:none;border:none;color:var(--text-dim);
+  padding:8px 14px;border-radius:8px;white-space:nowrap;cursor:pointer;
+  transition:all .2s;
+}
+.tab-btn.active{background:var(--amber);color:#fff}
+.tab-btn:not(.active):hover{color:var(--text-mid);background:var(--surface)}
+
+/* Scroll area */
+.main-scroll{
+  flex:1;overflow-y:auto;padding:16px;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;scrollbar-color:var(--surface-3) transparent;
+}
+
+/* Cards */
+.card{
+  background:var(--surface);border-radius:var(--radius);
+  padding:18px;margin-bottom:14px;
+  border:1px solid var(--surface-2);
+}
+.card-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:15px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--amber);margin-bottom:12px;
+  display:flex;align-items:center;gap:8px;
+}
+.card-title .icon{font-size:16px}
+
+/* Tank display (read-only) */
+.tank-row{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 0;border-bottom:1px solid var(--surface-2);
+}
+.tank-row:last-child{border-bottom:none}
+.tank-label{
+  font-size:13px;font-weight:500;color:var(--text-mid);
+  min-width:110px;
+}
+.tank-bar-bg{
+  flex:1;height:8px;background:var(--surface-3);border-radius:4px;overflow:hidden;
+}
+.tank-bar-fill{
+  height:100%;border-radius:4px;transition:width .6s ease;
+}
+.tank-val{font-size:13px;font-weight:600;min-width:36px;text-align:right}
+
+/* Slider tanks (editable) */
+.slider-group{padding:10px 0;border-bottom:1px solid var(--surface-2)}
+.slider-group:last-child{border-bottom:none}
+.slider-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.slider-label{font-size:13px;font-weight:500;color:var(--text-mid)}
+.slider-val{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:15px;font-weight:700;color:var(--amber);
+}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:6px;
+  background:var(--surface-3);border-radius:3px;outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:22px;height:22px;border-radius:50%;
+  background:var(--amber);cursor:pointer;border:3px solid var(--bg);
+  box-shadow:0 0 8px var(--amber-glow);
+}
+input[type=range]::-moz-range-thumb{
+  width:22px;height:22px;border-radius:50%;
+  background:var(--amber);cursor:pointer;border:3px solid var(--bg);
+}
+
+/* Suggestions / nudges */
+.suggestion{
+  background:var(--amber-dim);border-radius:var(--radius-sm);
+  padding:12px 14px;margin-bottom:8px;
+  border-left:3px solid var(--amber);
+}
+.suggestion .s-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.suggestion .s-sub{font-size:12px;color:var(--text-mid);line-height:1.4}
+
+/* Events list */
+.event-item{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:10px 0;border-bottom:1px solid var(--surface-2);
+}
+.event-item:last-child{border-bottom:none}
+.event-dot{
+  width:10px;height:10px;border-radius:50%;margin-top:4px;flex-shrink:0;
+}
+.event-date{font-size:11px;color:var(--text-dim);font-weight:500}
+.event-text{font-size:13px;color:var(--text);margin-top:2px}
+
+/* Grocery list */
+.grocery-item{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 0;border-bottom:1px solid var(--surface-2);
+  cursor:pointer;transition:opacity .2s;
+}
+.grocery-item:last-child{border-bottom:none}
+.grocery-item.done{opacity:.45}
+.grocery-item.done .g-text{text-decoration:line-through}
+.g-check{
+  width:22px;height:22px;border-radius:6px;
+  border:2px solid var(--surface-3);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;font-size:13px;
+}
+.grocery-item.done .g-check{background:var(--green);border-color:var(--green);color:#fff}
+.g-text{font-size:14px;flex:1}
+.g-cat{
+  font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--text-dim);background:var(--surface-3);
+  padding:2px 8px;border-radius:4px;
+}
+
+/* Date night ideas */
+.date-card{
+  background:var(--surface-2);border-radius:var(--radius-sm);
+  padding:14px 16px;margin-bottom:10px;
+  border:1px solid var(--surface-3);
+  transition:border-color .2s;cursor:pointer;
+}
+.date-card:hover{border-color:var(--amber)}
+.date-card h3{font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px}
+.date-card p{font-size:12px;color:var(--text-mid);line-height:1.5;margin-bottom:8px}
+.date-meta{display:flex;gap:12px}
+.date-meta span{
+  font-size:11px;font-weight:600;color:var(--text-dim);
+  display:flex;align-items:center;gap:4px;
+}
+.date-meta .cost{color:var(--green)}
+.date-meta .time{color:var(--blue)}
+
+/* Nudge badges */
+.nudge{
+  display:flex;align-items:center;gap:10px;
+  background:var(--surface-2);border-radius:var(--radius-sm);
+  padding:10px 14px;margin-bottom:8px;
+}
+.nudge-icon{font-size:20px;flex-shrink:0}
+.nudge-text{font-size:13px;color:var(--text-mid);line-height:1.4}
+.nudge-text strong{color:var(--text);font-weight:600}
+
+/* Section divider */
+.section-gap{height:6px}
+
+/* Empty state */
+.empty{text-align:center;padding:30px 20px;color:var(--text-dim);font-size:13px}
+
+/* Tab panel visibility */
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* Pulse animation for low tanks */
+@keyframes pulse-warn{
+  0%,100%{opacity:1}50%{opacity:.5}
+}
+.tank-warn{animation:pulse-warn 2s infinite}
+
+/* Bottom nav spacer */
+.bottom-spacer{height:20px}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div>
+    <h1>His Side</h1>
+    <div class="subtitle">Companion to Beag's Brain</div>
+  </div>
+  <span class="header-badge">Demo Mode</span>
+</header>
+
+<nav class="tab-bar" id="tabBar">
+  <button class="tab-btn active" data-tab="home">Home</button>
+  <button class="tab-btn" data-tab="mytanks">My Tanks</button>
+  <button class="tab-btn" data-tab="calendar">Calendar</button>
+  <button class="tab-btn" data-tab="grocery">Grocery Run</button>
+  <button class="tab-btn" data-tab="datenight">Date Night</button>
+</nav>
+
+<main class="main-scroll" id="mainScroll">
+
+  <!-- ========== HOME TAB ========== -->
+  <div id="tab-home" class="tab-panel active">
+
+    <div class="card">
+      <div class="card-title"><span class="icon">💕</span> Her Tanks Right Now</div>
+      <div id="herTanksHome"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">💡</span> Suggestions</div>
+      <div id="suggestionsHome"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">📅</span> Upcoming Events</div>
+      <div id="upcomingHome"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">🔔</span> Nudges</div>
+      <div id="nudgesHome"></div>
+    </div>
+
+    <div class="bottom-spacer"></div>
+  </div>
+
+  <!-- ========== MY TANKS TAB ========== -->
+  <div id="tab-mytanks" class="tab-panel">
+
+    <div class="card">
+      <div class="card-title"><span class="icon">🔥</span> My Tanks</div>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px">
+        Adjust the sliders to tell her how you're feeling this week.
+      </p>
+      <div id="myTanksSliders"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> My History</div>
+      <div id="myTanksHistory"></div>
+    </div>
+
+    <div class="bottom-spacer"></div>
+  </div>
+
+  <!-- ========== CALENDAR TAB ========== -->
+  <div id="tab-calendar" class="tab-panel">
+
+    <div class="card">
+      <div class="card-title"><span class="icon">📅</span> Her Schedule</div>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px">
+        Read-only view of her upcoming events &amp; commitments.
+      </p>
+      <div id="calendarEvents"></div>
+    </div>
+
+    <div class="bottom-spacer"></div>
+  </div>
+
+  <!-- ========== GROCERY RUN TAB ========== -->
+  <div id="tab-grocery" class="tab-panel">
+
+    <div class="card">
+      <div class="card-title"><span class="icon">🛒</span> Her Grocery List</div>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px">
+        Tap items as you grab them. She'll see what's checked off.
+      </p>
+      <div id="groceryList"></div>
+    </div>
+
+    <div class="card" style="text-align:center">
+      <div style="font-size:13px;color:var(--text-dim)" id="groceryProgress"></div>
+    </div>
+
+    <div class="bottom-spacer"></div>
+  </div>
+
+  <!-- ========== DATE NIGHT TAB ========== -->
+  <div id="tab-datenight" class="tab-panel">
+
+    <div class="card">
+      <div class="card-title"><span class="icon">🌙</span> Date Night Ideas</div>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px">
+        Curated ideas based on her tanks &amp; schedule.
+      </p>
+      <div id="dateIdeas"></div>
+    </div>
+
+    <div class="bottom-spacer"></div>
+  </div>
+
+</main>
+
+<script>
+// =============================================
+//  DEMO DATA
+// =============================================
+
+const DEMO = {
+  herTanks: {
+    touch:     38,
+    time:      52,
+    help:      71,
+    emotional: 25
+  },
+  herTankLabels: {
+    touch:     'Romance & Affection',
+    time:      'Quality Time',
+    help:      'Household Help',
+    emotional: 'Emotional Support'
+  },
+  herTankColors: {
+    touch:     '#E06C75',
+    time:      '#61AFEF',
+    help:      '#6BCB77',
+    emotional: '#C678DD'
+  },
+
+  myTanks: {
+    respect:     65,
+    physical:    48,
+    space:       72,
+    appreciation:55
+  },
+  myTankLabels: {
+    respect:      'Respect',
+    physical:     'Physical Affection',
+    space:        'Personal Space',
+    appreciation: 'Appreciation'
+  },
+
+  myTankHistory: [
+    { week: 'Mar 3',  respect: 60, physical: 50, space: 68, appreciation: 58 },
+    { week: 'Mar 10', respect: 55, physical: 45, space: 70, appreciation: 52 },
+    { week: 'Mar 17', respect: 62, physical: 52, space: 65, appreciation: 50 },
+    { week: 'Mar 24', respect: 65, physical: 48, space: 72, appreciation: 55 },
+  ],
+
+  events: [
+    { date: '2026-03-25', text: 'Wyatt — Soccer practice 5:30p',       color: '#6BCB77' },
+    { date: '2026-03-26', text: 'Beau — Pediatrician 10:00a',          color: '#61AFEF' },
+    { date: '2026-03-27', text: 'Girls\' Night Out 7:00p',             color: '#E06C75' },
+    { date: '2026-03-28', text: 'Meal Prep Sunday',                    color: '#C678DD' },
+    { date: '2026-03-29', text: 'Wyatt — T-Ball game 9:00a',           color: '#6BCB77' },
+    { date: '2026-03-30', text: 'Family Dinner at Mom\'s 5:00p',       color: '#E5C07B' },
+    { date: '2026-04-01', text: 'Deep clean — Kitchen & Bathrooms',    color: '#C678DD' },
+    { date: '2026-04-02', text: 'Beau — 18-month checkup 2:00p',      color: '#61AFEF' },
+    { date: '2026-04-04', text: 'Date Night 💕',                       color: '#E06C75' },
+  ],
+
+  groceries: [
+    { id: 1,  text: 'Whole milk (gallon)',       cat: 'dairy',   done: false },
+    { id: 2,  text: 'Shredded mozzarella',       cat: 'dairy',   done: false },
+    { id: 3,  text: 'Greek yogurt (vanilla)',     cat: 'dairy',   done: false },
+    { id: 4,  text: 'Chicken breasts (3 lb)',     cat: 'meat',    done: false },
+    { id: 5,  text: 'Ground turkey (1 lb)',       cat: 'meat',    done: false },
+    { id: 6,  text: 'Bananas',                    cat: 'produce', done: false },
+    { id: 7,  text: 'Avocados (4)',               cat: 'produce', done: false },
+    { id: 8,  text: 'Baby spinach',               cat: 'produce', done: false },
+    { id: 9,  text: 'Sweet potatoes (3)',          cat: 'produce', done: false },
+    { id: 10, text: 'Pasta — penne',              cat: 'pantry',  done: false },
+    { id: 11, text: 'Marinara sauce',             cat: 'pantry',  done: false },
+    { id: 12, text: 'Goldfish crackers',          cat: 'pantry',  done: false },
+    { id: 13, text: 'Diapers — Size 4 (Huggies)', cat: 'other',  done: false },
+    { id: 14, text: 'Baby wipes (refill)',        cat: 'other',   done: false },
+    { id: 15, text: 'Dryer sheets',               cat: 'other',   done: false },
+  ],
+
+  dateNightIdeas: [
+    {
+      title: 'Backyard Fire Pit & S\'mores',
+      desc: 'After the kids are down — blankets, fire pit, and s\'mores. Queue up a playlist and just talk.',
+      time: '1.5 hrs',
+      cost: 'Free'
+    },
+    {
+      title: 'H-E-B Cooking Challenge',
+      desc: 'Each pick 3 random ingredients under $5 and cook something together. Loser does dishes.',
+      time: '2 hrs',
+      cost: '$10'
+    },
+    {
+      title: 'Downtown Dinner — Two-Top',
+      desc: 'That Italian place she\'s been wanting to try. Book a sitter, dress up a little.',
+      time: '3 hrs',
+      cost: '$80–120'
+    },
+    {
+      title: 'Sunset Drive + Sonic',
+      desc: 'Load up the truck, grab Sonic slushes, find a backroad with a view. Simple and her love language.',
+      time: '1.5 hrs',
+      cost: '$8'
+    },
+    {
+      title: 'At-Home Spa Night',
+      desc: 'Face masks, candles, foot rub. YouTube a massage tutorial. She\'ll remember this one.',
+      time: '1 hr',
+      cost: '$15'
+    },
+    {
+      title: 'Farmer\'s Market Saturday',
+      desc: 'Hit the morning market, grab breakfast tacos, walk around. Bring the stroller for Beau.',
+      time: '2 hrs',
+      cost: '$20–30'
+    },
+  ]
+};
+
+// =============================================
+//  STATE
+// =============================================
+
+let myTanks = { ...DEMO.myTanks };
+let groceries = DEMO.groceries.map(g => ({ ...g }));
+
+// =============================================
+//  TAB NAVIGATION
+// =============================================
+
+const tabBar  = document.getElementById('tabBar');
+const panels  = document.querySelectorAll('.tab-panel');
+const buttons = tabBar.querySelectorAll('.tab-btn');
+
+tabBar.addEventListener('click', e => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  const tab = btn.dataset.tab;
+  buttons.forEach(b => b.classList.toggle('active', b === btn));
+  panels.forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+  document.getElementById('mainScroll').scrollTop = 0;
+});
+
+// =============================================
+//  RENDER: HOME TAB
+// =============================================
+
+function renderHome() {
+  // Her tanks (read-only)
+  const herTanksEl = document.getElementById('herTanksHome');
+  herTanksEl.innerHTML = Object.keys(DEMO.herTanks).map(k => {
+    const v = DEMO.herTanks[k];
+    const color = DEMO.herTankColors[k];
+    const warn = v < 35 ? ' tank-warn' : '';
+    return `<div class="tank-row">
+      <span class="tank-label">${DEMO.herTankLabels[k]}</span>
+      <div class="tank-bar-bg">
+        <div class="tank-bar-fill${warn}" style="width:${v}%;background:${color}"></div>
+      </div>
+      <span class="tank-val" style="color:${color}">${v}%</span>
+    </div>`;
+  }).join('');
+
+  // Suggestions based on low tanks
+  const suggestionsEl = document.getElementById('suggestionsHome');
+  const suggestions = [];
+  if (DEMO.herTanks.emotional < 40) {
+    suggestions.push({
+      title: 'Emotional Support is low',
+      sub: 'Ask her how she\'s really doing tonight — not "how was your day" but "what\'s weighing on you?"'
+    });
+  }
+  if (DEMO.herTanks.touch < 40) {
+    suggestions.push({
+      title: 'Romance & Affection needs attention',
+      sub: 'A long hug when you walk in, hand on her back while she cooks. Small physical touch goes far.'
+    });
+  }
+  if (DEMO.herTanks.time < 60) {
+    suggestions.push({
+      title: 'Quality Time is half-full',
+      sub: 'Put the phone away after 8pm tonight. Even 30 min of undivided attention helps.'
+    });
+  }
+  if (suggestions.length === 0) {
+    suggestions.push({ title: 'Looking good', sub: 'Her tanks are solid. Keep doing what you\'re doing, king.' });
+  }
+  suggestionsEl.innerHTML = suggestions.map(s =>
+    `<div class="suggestion"><div class="s-title">${s.title}</div><div class="s-sub">${s.sub}</div></div>`
+  ).join('');
+
+  // Upcoming events (next 5)
+  const upcomingEl = document.getElementById('upcomingHome');
+  const upcoming = DEMO.events.slice(0, 5);
+  upcomingEl.innerHTML = upcoming.map(ev => {
+    const d = new Date(ev.date + 'T00:00:00');
+    const dayStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    return `<div class="event-item">
+      <div class="event-dot" style="background:${ev.color}"></div>
+      <div><div class="event-date">${dayStr}</div><div class="event-text">${ev.text}</div></div>
+    </div>`;
+  }).join('');
+
+  // Nudges
+  const nudgesEl = document.getElementById('nudgesHome');
+  const nudges = [];
+  const lowTanks = Object.keys(DEMO.herTanks).filter(k => DEMO.herTanks[k] < 40);
+  if (lowTanks.length > 0) {
+    nudges.push({ icon: '⚠️', text: `<strong>${lowTanks.length} tank${lowTanks.length > 1 ? 's' : ''} below 40%</strong> — she might be running on empty. Check the suggestions above.` });
+  }
+  const groceryUndone = groceries.filter(g => !g.done).length;
+  if (groceryUndone > 0) {
+    nudges.push({ icon: '🛒', text: `<strong>${groceryUndone} items</strong> on the grocery list. Offer to make the run today.` });
+  }
+  nudges.push({ icon: '📅', text: `<strong>${DEMO.events[0].text}</strong> is today. Plan around it.` });
+
+  nudgesEl.innerHTML = nudges.map(n =>
+    `<div class="nudge"><span class="nudge-icon">${n.icon}</span><div class="nudge-text">${n.text}</div></div>`
+  ).join('');
+}
+
+// =============================================
+//  RENDER: MY TANKS TAB
+// =============================================
+
+function renderMyTanks() {
+  const container = document.getElementById('myTanksSliders');
+  container.innerHTML = Object.keys(myTanks).map(k => {
+    const v = myTanks[k];
+    return `<div class="slider-group">
+      <div class="slider-header">
+        <span class="slider-label">${DEMO.myTankLabels[k]}</span>
+        <span class="slider-val" id="val-${k}">${v}%</span>
+      </div>
+      <input type="range" min="0" max="100" value="${v}" data-tank="${k}">
+    </div>`;
+  }).join('');
+
+  container.querySelectorAll('input[type=range]').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const key = e.target.dataset.tank;
+      myTanks[key] = parseInt(e.target.value);
+      document.getElementById('val-' + key).textContent = e.target.value + '%';
+    });
+  });
+
+  // History
+  const histEl = document.getElementById('myTanksHistory');
+  const hist = DEMO.myTankHistory;
+  histEl.innerHTML = `<table style="width:100%;font-size:12px;border-collapse:collapse">
+    <thead>
+      <tr style="color:var(--text-dim);text-align:left">
+        <th style="padding:6px 4px">Week</th>
+        <th style="padding:6px 4px">Respect</th>
+        <th style="padding:6px 4px">Physical</th>
+        <th style="padding:6px 4px">Space</th>
+        <th style="padding:6px 4px">Apprec.</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${hist.map(r => `<tr style="border-top:1px solid var(--surface-2)">
+        <td style="padding:6px 4px;color:var(--text-mid)">${r.week}</td>
+        <td style="padding:6px 4px">${r.respect}%</td>
+        <td style="padding:6px 4px">${r.physical}%</td>
+        <td style="padding:6px 4px">${r.space}%</td>
+        <td style="padding:6px 4px">${r.appreciation}%</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+// =============================================
+//  RENDER: CALENDAR TAB
+// =============================================
+
+function renderCalendar() {
+  const container = document.getElementById('calendarEvents');
+  container.innerHTML = DEMO.events.map(ev => {
+    const d = new Date(ev.date + 'T00:00:00');
+    const dayStr = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    return `<div class="event-item">
+      <div class="event-dot" style="background:${ev.color}"></div>
+      <div><div class="event-date">${dayStr}</div><div class="event-text">${ev.text}</div></div>
+    </div>`;
+  }).join('');
+}
+
+// =============================================
+//  RENDER: GROCERY TAB
+// =============================================
+
+function renderGrocery() {
+  const container = document.getElementById('groceryList');
+
+  // Sort: unchecked first, then by category
+  const catOrder = { produce: 0, dairy: 1, meat: 2, pantry: 3, other: 4 };
+  const sorted = [...groceries].sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return (catOrder[a.cat] || 9) - (catOrder[b.cat] || 9);
+  });
+
+  container.innerHTML = sorted.map(g => {
+    const cls = g.done ? 'grocery-item done' : 'grocery-item';
+    return `<div class="${cls}" data-id="${g.id}">
+      <div class="g-check">${g.done ? '✓' : ''}</div>
+      <span class="g-text">${g.text}</span>
+      <span class="g-cat">${g.cat}</span>
+    </div>`;
+  }).join('');
+
+  container.querySelectorAll('.grocery-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = parseInt(el.dataset.id);
+      const item = groceries.find(g => g.id === id);
+      if (item) {
+        item.done = !item.done;
+        renderGrocery();
+      }
+    });
+  });
+
+  const done = groceries.filter(g => g.done).length;
+  const total = groceries.length;
+  document.getElementById('groceryProgress').innerHTML =
+    `<strong>${done}</strong> of <strong>${total}</strong> items checked off` +
+    (done === total ? ' — 🎉 All done!' : '');
+}
+
+// =============================================
+//  RENDER: DATE NIGHT TAB
+// =============================================
+
+function renderDateNight() {
+  const container = document.getElementById('dateIdeas');
+  container.innerHTML = DEMO.dateNightIdeas.map(d =>
+    `<div class="date-card">
+      <h3>${d.title}</h3>
+      <p>${d.desc}</p>
+      <div class="date-meta">
+        <span class="time">⏱ ${d.time}</span>
+        <span class="cost">💰 ${d.cost}</span>
+      </div>
+    </div>`
+  ).join('');
+}
+
+// =============================================
+//  INIT
+// =============================================
+
+renderHome();
+renderMyTanks();
+renderCalendar();
+renderGrocery();
+renderDateNight();
+
+</script>
+</body>
+</html>
